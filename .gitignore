@@ -27,6 +27,12 @@ go.work.sum
 # env file
 .env
 
+# Compiled binary (root-level only)
+/pingpong
+
+# Data directory (SQLite database, etc.)
+/data/
+
 # Editor/IDE
 # .idea/
 # .vscode/

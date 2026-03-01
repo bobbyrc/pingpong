@@ -42,7 +42,10 @@ func main() {
 	dnsCollector := collector.NewDNSCollector(cfg.DNSTarget, cfg.DNSServer)
 	traceCollector := collector.NewTracerouteCollector(cfg.TracerouteTarget)
 
-	os.MkdirAll(cfg.DataDir, 0755)
+	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
+		slog.Error("failed to create data directory", "path", cfg.DataDir, "error", err)
+		os.Exit(1)
+	}
 	queue, err := alerter.NewQueue(filepath.Join(cfg.DataDir, "alerts.db"))
 	if err != nil {
 		slog.Error("failed to open alert queue", "error", err)
@@ -59,6 +62,7 @@ func main() {
 	}
 
 	engine := alerter.NewEngine(queue, appriseClient, cfg)
+	engine.SeedCooldowns()
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
@@ -216,6 +220,7 @@ func main() {
 				return
 			}
 			m.TracerouteHops.WithLabelValues(result.Target).Set(float64(result.HopCount))
+			m.TracerouteHopLatency.Reset()
 			for _, hop := range result.Hops {
 				if hop.Address != "*" {
 					m.TracerouteHopLatency.WithLabelValues(

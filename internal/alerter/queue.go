@@ -1,6 +1,8 @@
 package alerter
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -29,9 +31,11 @@ func NewQueue(dbPath string) (*Queue, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	db.MustExec("PRAGMA journal_mode=WAL")
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		return nil, fmt.Errorf("set WAL mode: %w", err)
+	}
 
-	db.MustExec(`CREATE TABLE IF NOT EXISTS alerts (
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS alerts (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		sent_at TIMESTAMP,
@@ -40,7 +44,9 @@ func NewQueue(dbPath string) (*Queue, error) {
 		title TEXT NOT NULL,
 		body TEXT NOT NULL,
 		retry_count INTEGER NOT NULL DEFAULT 0
-	)`)
+	)`); err != nil {
+		return nil, fmt.Errorf("create alerts table: %w", err)
+	}
 
 	return &Queue{db: db}, nil
 }
@@ -95,7 +101,13 @@ func (q *Queue) LastSentTime(alertType string) (time.Time, bool, error) {
 		"SELECT sent_at FROM alerts WHERE alert_type = ? AND status = 'sent' ORDER BY sent_at DESC LIMIT 1",
 		alertType,
 	)
-	if err != nil || sentAt == nil {
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return time.Time{}, false, nil
+		}
+		return time.Time{}, false, err
+	}
+	if sentAt == nil {
 		return time.Time{}, false, nil
 	}
 	return *sentAt, true, nil
