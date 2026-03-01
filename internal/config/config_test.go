@@ -1,0 +1,96 @@
+package config
+
+import (
+	"os"
+	"testing"
+	"time"
+)
+
+func TestLoadDefaults(t *testing.T) {
+	for _, key := range []string{
+		"PINGPONG_PING_TARGETS",
+		"PINGPONG_PING_COUNT",
+		"PINGPONG_PING_INTERVAL",
+		"PINGPONG_SPEEDTEST_INTERVAL",
+		"PINGPONG_DNS_TARGET",
+		"PINGPONG_DNS_SERVER",
+		"PINGPONG_DNS_INTERVAL",
+		"PINGPONG_TRACEROUTE_TARGET",
+		"PINGPONG_TRACEROUTE_INTERVAL",
+		"PINGPONG_ALERT_DOWNTIME_THRESHOLD",
+		"PINGPONG_ALERT_PACKET_LOSS_THRESHOLD",
+		"PINGPONG_ALERT_PING_THRESHOLD",
+		"PINGPONG_ALERT_SPEED_THRESHOLD",
+		"PINGPONG_ALERT_JITTER_THRESHOLD",
+		"PINGPONG_ALERT_COOLDOWN",
+		"PINGPONG_ALERT_MAX_RETRIES",
+		"PINGPONG_ALERT_RETRY_INTERVAL",
+		"PINGPONG_APPRISE_URL",
+		"PINGPONG_APPRISE_URLS",
+		"PINGPONG_LISTEN_ADDR",
+		"PINGPONG_DATA_DIR",
+	} {
+		os.Unsetenv(key)
+	}
+
+	cfg := Load()
+
+	if len(cfg.PingTargets) != 3 {
+		t.Errorf("expected 3 default ping targets, got %d", len(cfg.PingTargets))
+	}
+	if cfg.PingTargets[0] != "1.1.1.1" {
+		t.Errorf("expected first target 1.1.1.1, got %s", cfg.PingTargets[0])
+	}
+	if cfg.PingCount != 10 {
+		t.Fatalf("expected ping count 10, got %d", cfg.PingCount)
+	}
+	if cfg.PingInterval != 60*time.Second {
+		t.Fatalf("expected ping interval 60s, got %v", cfg.PingInterval)
+	}
+	if cfg.SpeedtestInterval != 30*time.Minute {
+		t.Fatalf("expected speedtest interval 30m, got %v", cfg.SpeedtestInterval)
+	}
+	if cfg.DNSTarget != "google.com" {
+		t.Fatalf("expected DNS target google.com, got %s", cfg.DNSTarget)
+	}
+	if cfg.ListenAddr != ":8080" {
+		t.Fatalf("expected listen addr :8080, got %s", cfg.ListenAddr)
+	}
+	if cfg.DataDir != "/data" {
+		t.Fatalf("expected data dir /data, got %s", cfg.DataDir)
+	}
+	if cfg.AlertCooldown != 15*time.Minute {
+		t.Fatalf("expected alert cooldown 15m, got %v", cfg.AlertCooldown)
+	}
+}
+
+func TestLoadFromEnv(t *testing.T) {
+	os.Setenv("PINGPONG_PING_TARGETS", "8.8.8.8,9.9.9.9")
+	os.Setenv("PINGPONG_PING_COUNT", "5")
+	os.Setenv("PINGPONG_PING_INTERVAL", "30s")
+	os.Setenv("PINGPONG_LISTEN_ADDR", ":9090")
+	defer func() {
+		os.Unsetenv("PINGPONG_PING_TARGETS")
+		os.Unsetenv("PINGPONG_PING_COUNT")
+		os.Unsetenv("PINGPONG_PING_INTERVAL")
+		os.Unsetenv("PINGPONG_LISTEN_ADDR")
+	}()
+
+	cfg := Load()
+
+	if len(cfg.PingTargets) != 2 {
+		t.Fatalf("expected 2 ping targets, got %d", len(cfg.PingTargets))
+	}
+	if cfg.PingTargets[0] != "8.8.8.8" {
+		t.Fatalf("expected first target 8.8.8.8, got %s", cfg.PingTargets[0])
+	}
+	if cfg.PingCount != 5 {
+		t.Fatalf("expected ping count 5, got %d", cfg.PingCount)
+	}
+	if cfg.PingInterval != 30*time.Second {
+		t.Fatalf("expected ping interval 30s, got %v", cfg.PingInterval)
+	}
+	if cfg.ListenAddr != ":9090" {
+		t.Fatalf("expected listen addr :9090, got %s", cfg.ListenAddr)
+	}
+}
