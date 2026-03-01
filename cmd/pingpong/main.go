@@ -244,6 +244,7 @@ func main() {
 		ticker := time.NewTicker(cfg.AlertRetryInterval)
 		defer ticker.Stop()
 
+		engine.ProcessQueue()
 		for {
 			select {
 			case <-ctx.Done():
