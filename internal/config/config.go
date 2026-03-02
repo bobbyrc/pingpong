@@ -104,6 +104,9 @@ func getStringSlice(key string, fallback []string) []string {
 				result = append(result, trimmed)
 			}
 		}
+		if len(result) == 0 {
+			return fallback
+		}
 		return result
 	}
 	return fallback

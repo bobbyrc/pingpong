@@ -14,7 +14,7 @@ func TestQueueEnqueueAndPending(t *testing.T) {
 	}
 	defer q.Close()
 
-	err = q.Enqueue("downtime", "Connection Down", "Internet has been down for 2 minutes")
+	err = q.Enqueue("downtime", "downtime", "Connection Down", "Internet has been down for 2 minutes")
 	if err != nil {
 		t.Fatalf("failed to enqueue: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestQueueMarkSent(t *testing.T) {
 	}
 	defer q.Close()
 
-	q.Enqueue("latency", "High Latency", "Ping is 200ms")
+	q.Enqueue("latency:1.1.1.1", "latency", "High Latency", "Ping is 200ms")
 
 	pending, _ := q.Pending()
 	err = q.MarkSent(pending[0].ID)
@@ -67,7 +67,7 @@ func TestQueueIncrementRetry(t *testing.T) {
 	}
 	defer q.Close()
 
-	q.Enqueue("packet_loss", "Packet Loss", "50% packet loss")
+	q.Enqueue("packet_loss:1.1.1.1", "packet_loss", "Packet Loss", "50% packet loss")
 	pending, _ := q.Pending()
 
 	err = q.IncrementRetry(pending[0].ID)
@@ -89,7 +89,7 @@ func TestQueueMarkFailedPermanent(t *testing.T) {
 	}
 	defer q.Close()
 
-	q.Enqueue("speed", "Slow Speed", "Download is 5 Mbps")
+	q.Enqueue("speed", "speed", "Slow Speed", "Download is 5 Mbps")
 	pending, _ := q.Pending()
 
 	err = q.MarkFailedPermanent(pending[0].ID)
@@ -119,7 +119,7 @@ func TestQueueLastSentTime(t *testing.T) {
 		t.Fatal("expected no last sent time for new queue")
 	}
 
-	q.Enqueue("downtime", "Down", "down")
+	q.Enqueue("downtime", "downtime", "Down", "down")
 	pending, _ := q.Pending()
 	q.MarkSent(pending[0].ID)
 
@@ -140,7 +140,7 @@ func TestQueuePersistence(t *testing.T) {
 	dbPath := filepath.Join(dir, "test.db")
 
 	q1, _ := NewQueue(dbPath)
-	q1.Enqueue("downtime", "Down", "Internet down")
+	q1.Enqueue("downtime", "downtime", "Down", "Internet down")
 	q1.Close()
 
 	q2, _ := NewQueue(dbPath)

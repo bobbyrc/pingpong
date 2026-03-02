@@ -24,7 +24,7 @@ func NewDNSCollector(target, server string) *DNSCollector {
 			PreferGo: true,
 			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 				d := net.Dialer{}
-				return d.DialContext(ctx, "udp", server+":53")
+				return d.DialContext(ctx, network, net.JoinHostPort(server, "53"))
 			},
 		}
 	} else {

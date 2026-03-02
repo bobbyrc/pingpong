@@ -20,9 +20,14 @@ type PingResult struct {
 }
 
 func calculatePingResult(target string, rtts []time.Duration, sent int, lost int) PingResult {
+	packetLoss := 100.0
+	if sent > 0 {
+		packetLoss = float64(lost) / float64(sent) * 100
+	}
+
 	result := PingResult{
 		Target:     target,
-		PacketLoss: float64(lost) / float64(sent) * 100,
+		PacketLoss: packetLoss,
 	}
 
 	if len(rtts) == 0 {

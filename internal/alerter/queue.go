@@ -11,14 +11,15 @@ import (
 )
 
 type Alert struct {
-	ID         int64      `db:"id"`
-	CreatedAt  time.Time  `db:"created_at"`
-	SentAt     *time.Time `db:"sent_at"`
-	Status     string     `db:"status"`
-	AlertType  string     `db:"alert_type"`
-	Title      string     `db:"title"`
-	Body       string     `db:"body"`
-	RetryCount int        `db:"retry_count"`
+	ID          int64      `db:"id"`
+	CreatedAt   time.Time  `db:"created_at"`
+	SentAt      *time.Time `db:"sent_at"`
+	Status      string     `db:"status"`
+	AlertType   string     `db:"alert_type"`
+	CooldownKey string     `db:"cooldown_key"`
+	Title       string     `db:"title"`
+	Body        string     `db:"body"`
+	RetryCount  int        `db:"retry_count"`
 }
 
 type Queue struct {
@@ -41,12 +42,16 @@ func NewQueue(dbPath string) (*Queue, error) {
 		sent_at TIMESTAMP,
 		status TEXT NOT NULL DEFAULT 'pending',
 		alert_type TEXT NOT NULL,
+		cooldown_key TEXT NOT NULL DEFAULT '',
 		title TEXT NOT NULL,
 		body TEXT NOT NULL,
 		retry_count INTEGER NOT NULL DEFAULT 0
 	)`); err != nil {
 		return nil, fmt.Errorf("create alerts table: %w", err)
 	}
+
+	// Migration: add cooldown_key column if missing (existing databases).
+	db.Exec("ALTER TABLE alerts ADD COLUMN cooldown_key TEXT NOT NULL DEFAULT ''")
 
 	return &Queue{db: db}, nil
 }
@@ -55,10 +60,10 @@ func (q *Queue) Close() error {
 	return q.db.Close()
 }
 
-func (q *Queue) Enqueue(alertType, title, body string) error {
+func (q *Queue) Enqueue(cooldownKey, alertType, title, body string) error {
 	_, err := q.db.Exec(
-		"INSERT INTO alerts (alert_type, title, body) VALUES (?, ?, ?)",
-		alertType, title, body,
+		"INSERT INTO alerts (cooldown_key, alert_type, title, body) VALUES (?, ?, ?, ?)",
+		cooldownKey, alertType, title, body,
 	)
 	return err
 }
@@ -95,11 +100,11 @@ func (q *Queue) MarkFailedPermanent(id int64) error {
 	return err
 }
 
-func (q *Queue) LastSentTime(alertType string) (time.Time, bool, error) {
+func (q *Queue) LastSentTime(cooldownKey string) (time.Time, bool, error) {
 	var sentAt *time.Time
 	err := q.db.Get(&sentAt,
-		"SELECT sent_at FROM alerts WHERE alert_type = ? AND status = 'sent' ORDER BY sent_at DESC LIMIT 1",
-		alertType,
+		"SELECT sent_at FROM alerts WHERE cooldown_key = ? AND status = 'sent' ORDER BY sent_at DESC LIMIT 1",
+		cooldownKey,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -111,4 +116,27 @@ func (q *Queue) LastSentTime(alertType string) (time.Time, bool, error) {
 		return time.Time{}, false, nil
 	}
 	return *sentAt, true, nil
+}
+
+type cooldownEntry struct {
+	CooldownKey string     `db:"cooldown_key"`
+	LastSent    *time.Time `db:"last_sent"`
+}
+
+// AllCooldowns returns the most recent sent_at for each distinct cooldown_key.
+func (q *Queue) AllCooldowns() (map[string]time.Time, error) {
+	var entries []cooldownEntry
+	err := q.db.Select(&entries,
+		"SELECT cooldown_key, MAX(sent_at) AS last_sent FROM alerts WHERE status = 'sent' AND cooldown_key != '' GROUP BY cooldown_key",
+	)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]time.Time, len(entries))
+	for _, e := range entries {
+		if e.LastSent != nil {
+			result[e.CooldownKey] = *e.LastSent
+		}
+	}
+	return result, nil
 }

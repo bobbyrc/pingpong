@@ -31,18 +31,15 @@ func NewEngine(queue *Queue, apprise *AppriseClient, cfg *config.Config) *Engine
 // SeedCooldowns pre-populates lastAlertTime from the database so that cooldowns
 // survive a process restart.
 func (e *Engine) SeedCooldowns() {
-	alertTypes := []string{"downtime", "packet_loss", "latency", "speed", "jitter"}
+	cooldowns, err := e.queue.AllCooldowns()
+	if err != nil {
+		slog.Warn("failed to seed cooldowns", "error", err)
+		return
+	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	for _, alertType := range alertTypes {
-		t, ok, err := e.queue.LastSentTime(alertType)
-		if err != nil {
-			slog.Warn("failed to seed cooldown", "type", alertType, "error", err)
-			continue
-		}
-		if ok {
-			e.lastAlertTime[alertType] = t
-		}
+	for key, t := range cooldowns {
+		e.lastAlertTime[key] = t
 	}
 }
 
@@ -113,7 +110,7 @@ func (e *Engine) fireAlert(cooldownKey, alertType, title, body string) {
 		}
 	}
 
-	if err := e.queue.Enqueue(alertType, title, body); err != nil {
+	if err := e.queue.Enqueue(cooldownKey, alertType, title, body); err != nil {
 		slog.Error("failed to enqueue alert", "type", alertType, "error", err)
 		return
 	}
