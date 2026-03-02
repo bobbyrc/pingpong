@@ -12,13 +12,15 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        gnupg \
         traceroute \
         iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Ookla Speedtest CLI
 RUN curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash && \
-    apt-get install -y speedtest
+    apt-get install -y speedtest && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /pingpong /usr/local/bin/pingpong
 
