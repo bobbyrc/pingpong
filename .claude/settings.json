@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go test ./internal/config/ -v)",
+      "Bash(go test ./internal/metrics/ -v)",
+      "Bash(go test ./internal/collector/...)",
+      "Bash(go test ./internal/collector/... -run \"TestCalculatePing\" -v)",
+      "Bash(go test ./internal/collector/ -run TestDNSCollectorResolves)",
+      "Bash(go test ./internal/collector/ -run TestDNSCollectorResolves -v)",
+      "Bash(go test ./internal/collector/)",
+      "Bash(go test ./internal/collector/ -run TestParseSpeedtestOutput -v)",
+      "Bash(go test ./internal/collector/ -run TestParseTracerouteOutput)",
+      "Bash(go test ./internal/collector/ -run TestParseTracerouteOutput -v)",
+      "Bash(go test ./internal/alerter/...)",
+      "Bash(go test ./internal/alerter/... -v)",
+      "Bash(go test ./internal/alerter/ -run TestApprise)",
+      "Bash(go test ./internal/alerter/ -run TestApprise -v)",
+      "Bash(go test ./internal/alerter/ -v)",
+      "Bash(go test ./...)",
+      "Bash(go build ./cmd/pingpong/)",
+      "Bash(go test -short ./...)",
+      "Bash(go vet ./...)",
+      "Bash(go mod tidy)",
+      "Bash(go test -v ./...)"
+    ]
+  }
+}
