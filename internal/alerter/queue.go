@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -51,7 +52,11 @@ func NewQueue(dbPath string) (*Queue, error) {
 	}
 
 	// Migration: add cooldown_key column if missing (existing databases).
-	db.Exec("ALTER TABLE alerts ADD COLUMN cooldown_key TEXT NOT NULL DEFAULT ''")
+	if _, err := db.Exec("ALTER TABLE alerts ADD COLUMN cooldown_key TEXT NOT NULL DEFAULT ''"); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return nil, fmt.Errorf("migrate cooldown_key column: %w", err)
+		}
+	}
 
 	return &Queue{db: db}, nil
 }

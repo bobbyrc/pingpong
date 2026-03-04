@@ -134,17 +134,24 @@ func (e *Engine) ProcessQueue() {
 		err := e.apprise.Send(alert.Title, alert.Body)
 		if err != nil {
 			slog.Error("failed to send alert", "id", alert.ID, "error", err)
-			e.queue.IncrementRetry(alert.ID)
+			if incErr := e.queue.IncrementRetry(alert.ID); incErr != nil {
+				slog.Error("failed to increment retry count", "id", alert.ID, "error", incErr)
+			}
 
 			if alert.RetryCount+1 >= e.cfg.AlertMaxRetries {
 				slog.Error("alert exceeded max retries, marking permanent failure",
 					"id", alert.ID, "type", alert.AlertType)
-				e.queue.MarkFailedPermanent(alert.ID)
+				if markErr := e.queue.MarkFailedPermanent(alert.ID); markErr != nil {
+					slog.Error("failed to mark alert as permanent failure", "id", alert.ID, "error", markErr)
+				}
 			}
 			continue
 		}
 
-		e.queue.MarkSent(alert.ID)
+		if markErr := e.queue.MarkSent(alert.ID); markErr != nil {
+			slog.Error("failed to mark alert as sent", "id", alert.ID, "error", markErr)
+			continue
+		}
 		slog.Info("alert sent successfully", "id", alert.ID, "type", alert.AlertType)
 	}
 }

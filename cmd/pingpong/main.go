@@ -225,7 +225,8 @@ func main() {
 				if hop.Address != "*" {
 					m.TracerouteHopLatency.WithLabelValues(
 						result.Target,
-						fmt.Sprintf("%d_%s", hop.Number, hop.Address),
+						fmt.Sprintf("%d", hop.Number),
+						hop.Address,
 					).Set(hop.LatencyMs)
 				}
 			}

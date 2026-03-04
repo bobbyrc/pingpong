@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 	"time"
 )
@@ -30,7 +29,7 @@ func TestLoadDefaults(t *testing.T) {
 		"PINGPONG_LISTEN_ADDR",
 		"PINGPONG_DATA_DIR",
 	} {
-		os.Unsetenv(key)
+		t.Setenv(key, "")
 	}
 
 	cfg := Load()
@@ -65,16 +64,10 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadFromEnv(t *testing.T) {
-	os.Setenv("PINGPONG_PING_TARGETS", "8.8.8.8,9.9.9.9")
-	os.Setenv("PINGPONG_PING_COUNT", "5")
-	os.Setenv("PINGPONG_PING_INTERVAL", "30s")
-	os.Setenv("PINGPONG_LISTEN_ADDR", ":9090")
-	defer func() {
-		os.Unsetenv("PINGPONG_PING_TARGETS")
-		os.Unsetenv("PINGPONG_PING_COUNT")
-		os.Unsetenv("PINGPONG_PING_INTERVAL")
-		os.Unsetenv("PINGPONG_LISTEN_ADDR")
-	}()
+	t.Setenv("PINGPONG_PING_TARGETS", "8.8.8.8,9.9.9.9")
+	t.Setenv("PINGPONG_PING_COUNT", "5")
+	t.Setenv("PINGPONG_PING_INTERVAL", "30s")
+	t.Setenv("PINGPONG_LISTEN_ADDR", ":9090")
 
 	cfg := Load()
 

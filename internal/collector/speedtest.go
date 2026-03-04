@@ -47,7 +47,7 @@ func NewSpeedtestCollector() *SpeedtestCollector {
 
 func (s *SpeedtestCollector) Collect(ctx context.Context) (SpeedtestResult, error) {
 	slog.Info("running speed test...")
-	cmd := exec.CommandContext(ctx, "speedtest", "--format=json", "--accept-license")
+	cmd := exec.CommandContext(ctx, "speedtest", "--format=json", "--accept-license", "--accept-gdpr")
 	output, err := cmd.Output()
 	if err != nil {
 		return SpeedtestResult{}, fmt.Errorf("run speedtest: %w", err)

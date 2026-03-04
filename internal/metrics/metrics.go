@@ -71,7 +71,7 @@ func New(reg prometheus.Registerer) *Metrics {
 		TracerouteHopLatency: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "pingpong_traceroute_hop_latency_ms",
 			Help: "Latency per traceroute hop in milliseconds",
-		}, []string{"target", "hop"}),
+		}, []string{"target", "hop", "address"}),
 	}
 
 	reg.MustRegister(
