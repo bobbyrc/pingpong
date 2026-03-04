@@ -7,10 +7,23 @@ Self-hosted internet health monitor. PingPong continuously measures the vitals o
 ```bash
 git clone <repo>
 cp .env.example .env  # edit PINGPONG_APPRISE_URLS with your notification URLs
-docker compose up -d
+```
+
+**Full stack** (includes Prometheus + Grafana):
+
+```bash
+docker compose --profile monitoring up -d
 ```
 
 Open Grafana at **http://localhost:3000** (username: `admin`, password: `admin`).
+
+**Minimal** (bring your own Prometheus/Grafana):
+
+```bash
+docker compose up -d
+```
+
+See [Using Your Own Monitoring Stack](#using-your-own-monitoring-stack) below.
 
 ## Using the Published Image
 
@@ -22,6 +35,31 @@ A pre-built image is published to the GitHub Container Registry at `ghcr.io/bcra
 # with:
   image: ghcr.io/bcraig/pingpong:latest
 ```
+
+## Using Your Own Monitoring Stack
+
+If you already run Prometheus and Grafana, you can skip the bundled monitoring containers and point your existing tools at PingPong.
+
+### Prometheus
+
+Add PingPong as a scrape target in your Prometheus config:
+
+```yaml
+scrape_configs:
+  - job_name: "pingpong"
+    static_configs:
+      - targets: ["<pingpong-host>:8080"]
+    scrape_interval: 30s
+```
+
+### Grafana Dashboard
+
+Import the pre-built dashboard into your Grafana:
+
+1. Open Grafana → **Dashboards** → **Import**
+2. Upload `grafana/dashboards/pingpong.json` from this repo
+3. Select your Prometheus datasource when prompted
+4. Click **Import**
 
 ## What It Monitors
 
@@ -68,7 +106,7 @@ All intervals are configurable. See the Configuration section below.
 └─────────────────────────────────────────────────────┘
 ```
 
-4 containers: PingPong, Prometheus, Grafana, Apprise API.
+4 containers: PingPong, Prometheus (optional), Grafana (optional), Apprise API. Use `--profile monitoring` to include Prometheus and Grafana.
 
 ## Configuration
 
@@ -143,9 +181,9 @@ Alerts are queued in a SQLite database before being sent to Apprise. The databas
 
 ## Accessing Services
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| Grafana | http://localhost:3000 | admin / admin |
-| Prometheus | http://localhost:9090 | — |
-| PingPong metrics | http://localhost:8080/metrics | — |
-| PingPong health | http://localhost:8080/health | — |
+| Service | URL | Credentials | Profile |
+|---------|-----|-------------|---------|
+| Grafana | http://localhost:3000 | admin / admin | monitoring |
+| Prometheus | http://localhost:9090 | — | monitoring |
+| PingPong metrics | http://localhost:8080/metrics | — | always |
+| PingPong health | http://localhost:8080/health | — | always |
