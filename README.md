@@ -61,6 +61,8 @@ Import the pre-built dashboard into your Grafana:
 3. Select your Prometheus datasource when prompted
 4. Click **Import**
 
+The dashboard panels reference a datasource with UID `prometheus`. If your Prometheus datasource uses a different UID, update the datasource in each panel after import, or set your datasource UID to `prometheus` in your Grafana datasource provisioning config.
+
 ## What It Monitors
 
 | Metric | Description | Default Interval |
