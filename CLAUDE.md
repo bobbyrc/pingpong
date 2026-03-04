@@ -28,7 +28,7 @@ PingPong is a single Go binary that monitors network quality (ping, DNS, speedte
 - **`internal/alerter/`** — Three components:
   - `Queue` — SQLite-backed durable alert queue (WAL mode, via `sqlx` + `modernc.org/sqlite`).
   - `AppriseClient` — HTTP client posting to Apprise API `/notify` endpoint.
-  - `Engine` — Threshold evaluation with per-target cooldowns (in-memory map keyed by `"alertType:target"`, seeded from DB on startup via `SeedCooldowns()`). Calls `queue.Enqueue()` when thresholds crossed, `ProcessQueue()` drains pending alerts.
+  - `Engine` — Threshold evaluation with per-target cooldowns (in-memory map keyed by `"alertType:target"`, seeded from DB on startup via `SeedCooldowns()`/`AllCooldowns()`). The `cooldown_key` is persisted in the alerts table so per-target cooldowns survive restarts. Calls `queue.Enqueue()` when thresholds crossed, `ProcessQueue()` drains pending alerts.
 - **`internal/config/`** — Env-var-only config. All vars prefixed `PINGPONG_*`. Defaults hardcoded in `config.Load()`.
 
 ### Data Flow
@@ -56,6 +56,6 @@ Docker Compose stack with 4 containers: `pingpong` (Go app, port 8080), `prometh
 - Pure-Go SQLite (`modernc.org/sqlite`) — no CGO required
 - Prometheus metrics use a dedicated registry (not the global default)
 - Collectors are stateless; all state lives in metrics or the alert engine
-- Traceroute hop labels use `{hop_number}_{hop_address}` format to avoid label cardinality issues
+- Traceroute hop latency metric uses separate `hop` (number) and `address` labels; `TracerouteHopLatency.Reset()` is called before each cycle to avoid stale series
 - Speedtest and traceroute collectors shell out to CLI binaries only available inside the Docker image; their unit tests exercise output parsing only, not actual execution
 - Ping integration tests require `CAP_NET_RAW` (root or Docker); use `-short` to skip them locally
