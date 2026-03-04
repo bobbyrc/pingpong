@@ -14,7 +14,7 @@ Open Grafana at **http://localhost:3000** (username: `admin`, password: `admin`)
 
 ## Using the Published Image
 
-A pre-built image is published to the GitHub Container Registry at `ghcr.io/bcraig/pingpong:latest`, supporting both `linux/amd64` and `linux/arm64`. If you don't need to build from source, replace the `build: .` line in `docker-compose.yml` with the published image — no repo clone required. Available tags are listed on the [GitHub Packages page](https://github.com/bcraig/pingpong/pkgs/container/pingpong).
+A pre-built image is published to the GitHub Container Registry at `ghcr.io/bcraig/pingpong:latest`, supporting both `linux/amd64` and `linux/arm64`. If you don't need to build from source, you can use this published image in your existing `docker-compose.yml` by replacing the `build: .` line with the image reference. Available tags are listed on the [GitHub Packages page](https://github.com/bcraig/pingpong/pkgs/container/pingpong).
 
 ```yaml
 # docker-compose.yml — replace:
