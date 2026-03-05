@@ -15,9 +15,9 @@ cp .env.example .env  # edit PINGPONG_APPRISE_URLS with your notification URLs
 docker compose --profile monitoring up -d
 ```
 
-Open Grafana at **http://localhost:3000** (username: `admin`, password: `admin`).
+Then open Grafana at **http://localhost:3000** (admin / admin).
 
-**Minimal** (bring your own Prometheus/Grafana):
+**Minimal** (PingPong + Apprise only — bring your own Prometheus/Grafana):
 
 ```bash
 docker compose up -d
@@ -58,10 +58,9 @@ Import the pre-built dashboard into your Grafana:
 
 1. Open Grafana → **Dashboards** → **Import**
 2. Upload `grafana/dashboards/pingpong.json` from this repo
-3. Select your Prometheus datasource when prompted
-4. Click **Import**
+3. Click **Import**
 
-The dashboard panels reference a datasource with UID `prometheus`. If your Prometheus datasource uses a different UID, update the datasource in each panel after import, or set your datasource UID to `prometheus` in your Grafana datasource provisioning config.
+The dashboard panels reference a Prometheus datasource with UID `prometheus`. If your Prometheus datasource uses a different UID, either update the datasource in each panel after import or set your datasource UID to `prometheus` in your Grafana datasource provisioning config.
 
 ## What It Monitors
 
