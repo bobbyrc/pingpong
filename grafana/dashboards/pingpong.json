@@ -37,7 +37,7 @@
         "builtIn": 0,
         "datasource": {
           "type": "prometheus",
-          "uid": "prometheus"
+          "uid": "${ds_prometheus}"
         },
         "enable": true,
         "expr": "changes(pingpong_connection_up[5m]) > 0",
@@ -60,7 +60,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -125,7 +125,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_connection_up",
           "instant": true,
@@ -139,7 +139,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -192,7 +192,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_download_speed_mbps",
           "instant": true,
@@ -206,7 +206,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -259,7 +259,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_upload_speed_mbps",
           "instant": true,
@@ -273,7 +273,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -326,7 +326,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_traceroute_hops",
           "instant": true,
@@ -340,7 +340,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -406,7 +406,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_ping_latency_ms",
           "legendFormat": "{{target}}",
@@ -419,7 +419,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -485,7 +485,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_jitter_ms",
           "legendFormat": "{{target}}",
@@ -498,7 +498,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -575,7 +575,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_packet_loss_percent",
           "legendFormat": "{{target}}",
@@ -588,7 +588,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -654,7 +654,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_dns_resolution_ms",
           "legendFormat": "{{target}}",
@@ -667,7 +667,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -735,7 +735,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "100 * avg_over_time(pingpong_connection_up[$__range])",
           "legendFormat": "Uptime %",
@@ -748,7 +748,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -815,7 +815,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_download_speed_mbps",
           "legendFormat": "Download (Mbps)",
@@ -824,7 +824,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_upload_speed_mbps",
           "legendFormat": "Upload (Mbps)",
@@ -849,7 +849,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${ds_prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -962,7 +962,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "pingpong_traceroute_hop_latency_ms",
           "instant": true,
@@ -1004,7 +1004,20 @@
   "schemaVersion": 38,
   "tags": ["pingpong", "network", "internet"],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "ds_prometheus",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource",
+        "label": "Prometheus"
+      }
+    ]
   },
   "time": {
     "from": "now-24h",

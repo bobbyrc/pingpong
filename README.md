@@ -60,7 +60,7 @@ Import the pre-built dashboard into your Grafana:
 2. Upload `grafana/dashboards/pingpong.json` from this repo
 3. Click **Import**
 
-The dashboard panels reference a Prometheus datasource with UID `prometheus`. If your Prometheus datasource uses a different UID, either update the datasource in each panel after import or set your datasource UID to `prometheus` in your Grafana datasource provisioning config.
+The dashboard has a datasource dropdown at the top — select your Prometheus instance there. All panels update automatically.
 
 ## What It Monitors
 
