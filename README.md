@@ -6,6 +6,7 @@ Self-hosted internet health monitor. PingPong continuously measures the vitals o
 
 ```bash
 git clone <repo>
+cd pingpong
 cp .env.example .env  # edit PINGPONG_APPRISE_URLS with your notification URLs
 ```
 
