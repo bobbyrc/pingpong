@@ -142,7 +142,7 @@ All intervals are configurable. See the Configuration section below.
 
 ## Configuration
 
-> **Note:** PingPong requires the `NET_RAW` Linux capability to send ICMP ping packets. This is granted via `cap_add: NET_RAW` in the compose file. Without it, ping measurements will fail silently. Users running rootless Docker, Kubernetes, or Podman may need to grant this capability explicitly.
+> **Note:** PingPong requires the `NET_RAW` Linux capability to send ICMP ping packets. This is granted via `cap_add: NET_RAW` in the compose file. Without it, ping measurements will fail and you'll see `ping failed` errors in the logs. Users running rootless Docker, Kubernetes, or Podman may need to grant this capability explicitly.
 
 Copy `.env.example` to `.env` and edit as needed. The file is organized into four sections:
 
