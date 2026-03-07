@@ -5,5 +5,5 @@ global:
 scrape_configs:
   - job_name: "pingpong"
     static_configs:
-      - targets: ["pingpong:8080"]
+      - targets: ["pingpong:4040"]
     scrape_interval: 30s

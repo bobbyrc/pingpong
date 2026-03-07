@@ -47,7 +47,7 @@ main.go goroutine → collector.Collect(ctx) → main.go sets metrics.* gauges
 
 ## Deployment
 
-Docker Compose stack with 4 containers: `pingpong` (Go app, port 8080), `prometheus` (9090), `grafana` (3000), `apprise` (8000). The Go container requires `NET_RAW` capability for ICMP. Multi-stage Dockerfile installs `traceroute`, `iputils-ping`, and Ookla `speedtest` CLI in the runtime image.
+Docker Compose stack with 4 containers: `pingpong` (Go app, port 4040), `prometheus` (9090), `grafana` (3000), `apprise` (8000). The Go container requires `NET_RAW` capability for ICMP. Multi-stage Dockerfile installs `traceroute`, `iputils-ping`, and Ookla `speedtest` CLI in the runtime image.
 
 ## Key Conventions
 
