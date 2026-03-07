@@ -24,17 +24,19 @@ Then open Grafana at **http://localhost:3000** (admin / admin).
 docker compose up -d
 ```
 
+This starts only PingPong and Apprise — no Prometheus or Grafana containers. PingPong exposes metrics at `http://localhost:4040/metrics` for your existing monitoring stack to scrape.
+
 See [Using Your Own Monitoring Stack](#using-your-own-monitoring-stack) below.
 
 ## Using the Published Image
 
-A pre-built image is published to the GitHub Container Registry at `ghcr.io/bcraig/pingpong:latest`, supporting both `linux/amd64` and `linux/arm64`. If you don't need to build from source, you can use this published image in your existing `docker-compose.yml` by replacing the `build: .` line with the image reference. Available tags are listed on the [GitHub Packages page](https://github.com/bcraig/pingpong/pkgs/container/pingpong).
+A pre-built image is published to the GitHub Container Registry at `ghcr.io/bobbyrc/pingpong:latest`, supporting both `linux/amd64` and `linux/arm64`. If you don't need to build from source, you can use this published image in your existing `docker-compose.yml` by replacing the `build: .` line with the image reference. Available tags are listed on the [GitHub Packages page](https://github.com/bobbyrc/pingpong/pkgs/container/pingpong).
 
 ```yaml
 # docker-compose.yml — replace:
 #   build: .
 # with:
-  image: ghcr.io/bcraig/pingpong:latest
+  image: ghcr.io/bobbyrc/pingpong:latest
 ```
 
 ## Using Your Own Monitoring Stack
@@ -49,7 +51,7 @@ Add PingPong as a scrape target in your Prometheus config:
 scrape_configs:
   - job_name: "pingpong"
     static_configs:
-      - targets: ["<pingpong-host>:8080"]
+      - targets: ["<pingpong-host>:4040"]
     scrape_interval: 30s
 ```
 
@@ -62,6 +64,34 @@ Import the pre-built dashboard into your Grafana:
 3. Click **Import**
 
 The dashboard has a datasource dropdown at the top — select your Prometheus instance there. All panels update automatically.
+
+### Docker Network Integration
+
+If your Prometheus runs in a separate Docker Compose stack, PingPong needs to join a shared network so Prometheus can reach it by service name.
+
+Create a shared Docker network:
+
+```bash
+docker network create monitoring
+```
+
+In your PingPong compose file, declare it as an external network and attach it to the `pingpong` service:
+
+```yaml
+services:
+  pingpong:
+    networks:
+      - default
+      - monitoring
+
+networks:
+  monitoring:
+    external: true
+```
+
+Then use `pingpong` as the scrape target hostname in your Prometheus config — no IP addresses needed.
+
+If PingPong runs directly on the host (outside Docker), use the host's IP address as the Prometheus target instead.
 
 ## What It Monitors
 
@@ -86,7 +116,7 @@ All intervals are configurable. See the Configuration section below.
 │                                                      │
 │  ┌───────────┐   scrapes    ┌──────────────────────┐ │
 │  │ Prometheus│◄────────────│    PingPong (Go)      │ │
-│  │   :9090   │   /metrics  │       :8080           │ │
+│  │   :9090   │   /metrics  │       :4040           │ │
 │  └─────┬─────┘             │                       │ │
 │        │                   │  Measurement loops:    │ │
 │  ┌─────▼─────┐             │  • Ping / jitter      │ │
@@ -111,6 +141,8 @@ All intervals are configurable. See the Configuration section below.
 4 containers: PingPong, Prometheus (optional), Grafana (optional), Apprise API. Use `--profile monitoring` to include Prometheus and Grafana.
 
 ## Configuration
+
+> **Note:** PingPong requires the `NET_RAW` Linux capability to send ICMP ping packets. This is granted via `cap_add: NET_RAW` in the compose file. Without it, ping measurements will fail and you'll see `ping failed` errors in the logs. Users running rootless Docker, Kubernetes, or Podman may need to grant this capability explicitly.
 
 Copy `.env.example` to `.env` and edit as needed. The file is organized into four sections:
 
@@ -187,5 +219,5 @@ Alerts are queued in a SQLite database before being sent to Apprise. The databas
 |---------|-----|-------------|---------|
 | Grafana | http://localhost:3000 | admin / admin | monitoring |
 | Prometheus | http://localhost:9090 | — | monitoring |
-| PingPong metrics | http://localhost:8080/metrics | — | always |
-| PingPong health | http://localhost:8080/health | — | always |
+| PingPong metrics | http://localhost:4040/metrics | — | always |
+| PingPong health | http://localhost:4040/health | — | always |

@@ -56,7 +56,7 @@ func Load() *Config {
 		AlertRetryInterval:       getDuration("PINGPONG_ALERT_RETRY_INTERVAL", 30*time.Second),
 		AppriseURL:               getString("PINGPONG_APPRISE_URL", "http://apprise:8000"),
 		AppriseURLs:              getString("PINGPONG_APPRISE_URLS", ""),
-		ListenAddr:               getString("PINGPONG_LISTEN_ADDR", ":8080"),
+		ListenAddr:               getString("PINGPONG_LISTEN_ADDR", ":4040"),
 		DataDir:                  getString("PINGPONG_DATA_DIR", "/data"),
 	}
 }

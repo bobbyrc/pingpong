@@ -52,8 +52,8 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.DNSTarget != "google.com" {
 		t.Fatalf("expected DNS target google.com, got %s", cfg.DNSTarget)
 	}
-	if cfg.ListenAddr != ":8080" {
-		t.Fatalf("expected listen addr :8080, got %s", cfg.ListenAddr)
+	if cfg.ListenAddr != ":4040" {
+		t.Fatalf("expected listen addr :4040, got %s", cfg.ListenAddr)
 	}
 	if cfg.DataDir != "/data" {
 		t.Fatalf("expected data dir /data, got %s", cfg.DataDir)
