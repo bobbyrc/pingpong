@@ -10,9 +10,18 @@ services:
     volumes:
       - pingpong-data:/data
     ports:
-      - "8080:8080"
+      - "4040:4040"
+    expose:
+      - "4040"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4040/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
-      - apprise
+      apprise:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:latest
@@ -50,6 +59,12 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   pingpong-data:
