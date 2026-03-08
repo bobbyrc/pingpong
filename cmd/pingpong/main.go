@@ -12,10 +12,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bcraig/pingpong/internal/alerter"
-	"github.com/bcraig/pingpong/internal/collector"
-	"github.com/bcraig/pingpong/internal/config"
-	"github.com/bcraig/pingpong/internal/metrics"
+	"github.com/bobbyrc/pingpong/internal/alerter"
+	"github.com/bobbyrc/pingpong/internal/collector"
+	"github.com/bobbyrc/pingpong/internal/config"
+	"github.com/bobbyrc/pingpong/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

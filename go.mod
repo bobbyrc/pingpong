@@ -1,4 +1,4 @@
-module github.com/bcraig/pingpong
+module github.com/bobbyrc/pingpong
 
 go 1.24.0
 

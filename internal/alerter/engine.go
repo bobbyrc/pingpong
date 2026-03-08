@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bcraig/pingpong/internal/collector"
-	"github.com/bcraig/pingpong/internal/config"
+	"github.com/bobbyrc/pingpong/internal/collector"
+	"github.com/bobbyrc/pingpong/internal/config"
 )
 
 type Engine struct {
