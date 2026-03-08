@@ -29,8 +29,11 @@ func main() {
 	slog.Info("pingpong starting",
 		"ping_targets", cfg.PingTargets,
 		"ping_interval", cfg.PingInterval,
-		"speedtest_interval", cfg.SpeedtestInterval,
+		"dns_targets", cfg.DNSTargets,
+		"dns_servers", cfg.DNSServers,
 		"dns_interval", cfg.DNSInterval,
+		"speedtest_interval", cfg.SpeedtestInterval,
+		"speedtest_server_id", cfg.SpeedtestServerID,
 		"traceroute_interval", cfg.TracerouteInterval,
 	)
 
@@ -39,7 +42,7 @@ func main() {
 
 	pingCollector := collector.NewPingCollector(cfg.PingTargets, cfg.PingCount)
 	speedCollector := collector.NewSpeedtestCollector(cfg.SpeedtestServerID)
-	dnsCollector := collector.NewDNSCollector(cfg.DNSTarget, cfg.DNSServer)
+	dnsCollector := collector.NewDNSCollector(cfg.DNSTargets, cfg.DNSServers)
 	traceCollector := collector.NewTracerouteCollector(cfg.TracerouteTarget)
 
 	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
@@ -117,12 +120,14 @@ func main() {
 				connDown = true
 				downSince = time.Now()
 				m.ConnectionUp.Set(0)
+				m.ConnectionFlaps.Inc()
 				slog.Warn("connection detected as DOWN")
 			} else if !allDown && connDown {
 				downtime := time.Since(downSince)
 				m.DowntimeTotal.Add(downtime.Seconds())
 				connDown = false
 				m.ConnectionUp.Set(1)
+				m.ConnectionFlaps.Inc()
 				slog.Info("connection restored", "downtime", downtime.Round(time.Second))
 			} else if !allDown {
 				m.ConnectionUp.Set(1)
@@ -159,11 +164,17 @@ func main() {
 			result, err := speedCollector.Collect(ctx)
 			if err != nil {
 				slog.Error("speedtest failed", "error", err)
+				m.SpeedtestFailures.Inc()
 				return
 			}
 			m.DownloadSpeed.Set(result.DownloadMbps)
 			m.UploadSpeed.Set(result.UploadMbps)
 			m.SpeedtestLatency.Set(result.LatencyMs)
+
+			m.SpeedtestInfo.Reset()
+			if result.ServerName != "" || result.ISP != "" {
+				m.SpeedtestInfo.WithLabelValues(result.ServerName, result.ServerLocation, result.ISP).Set(1)
+			}
 
 			engine.EvaluateSpeed(result)
 		}
@@ -187,12 +198,13 @@ func main() {
 		defer ticker.Stop()
 
 		runDNS := func() {
-			result, err := dnsCollector.Collect(ctx)
-			if err != nil {
-				slog.Error("DNS check failed", "error", err)
-				return
+			results, failures := dnsCollector.Collect(ctx)
+			for _, r := range results {
+				m.DNSResolution.WithLabelValues(r.Target, r.Server).Set(r.ResolutionMs)
 			}
-			m.DNSResolution.WithLabelValues(result.Target).Set(result.ResolutionMs)
+			for _, f := range failures {
+				m.DNSFailures.WithLabelValues(f.Target, f.Server).Inc()
+			}
 		}
 
 		runDNS()
@@ -217,6 +229,7 @@ func main() {
 			result, err := traceCollector.Collect(ctx)
 			if err != nil {
 				slog.Error("traceroute failed", "error", err)
+				m.TracerouteFailures.Inc()
 				return
 			}
 			m.TracerouteHops.WithLabelValues(result.Target).Set(float64(result.HopCount))
