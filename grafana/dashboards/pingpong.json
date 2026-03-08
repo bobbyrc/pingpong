@@ -448,7 +448,7 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "expr": "increase(pingpong_downtime_seconds_total[$__range])",
+          "expr": "($__range_s) * (1 - avg_over_time(pingpong_connection_up[$__range]))",
           "instant": true,
           "legendFormat": "Downtime",
           "refId": "A"
