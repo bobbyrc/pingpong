@@ -34,6 +34,7 @@ type Config struct {
 
 	ListenAddr string
 	DataDir    string
+	EnvFile    string
 }
 
 func Load() *Config {
@@ -60,6 +61,7 @@ func Load() *Config {
 		AppriseURLs:              getString("PINGPONG_APPRISE_URLS", ""),
 		ListenAddr:               getString("PINGPONG_LISTEN_ADDR", ":4040"),
 		DataDir:                  getString("PINGPONG_DATA_DIR", "/data"),
+		EnvFile:                  getString("PINGPONG_ENV_FILE", ".env"),
 	}
 }
 
