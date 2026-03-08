@@ -115,8 +115,12 @@ func (b *Broadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Send an immediate snapshot so the client doesn't wait for the next tick.
 	if data, err := b.snapshotJSON(); err == nil {
-		fmt.Fprintf(w, "data: %s\n\n", data)
+		if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
+			return
+		}
 		flusher.Flush()
+	} else {
+		slog.Error("failed to gather initial SSE snapshot", "error", err)
 	}
 
 	for {
@@ -124,7 +128,9 @@ func (b *Broadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case msg := <-ch:
-			fmt.Fprintf(w, "data: %s\n\n", msg)
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", msg); err != nil {
+				return
+			}
 			flusher.Flush()
 		}
 	}
