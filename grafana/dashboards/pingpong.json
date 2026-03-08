@@ -882,10 +882,18 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "off"
+              "mode": "area"
             }
           },
-          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 99.5 }
+            ]
+          },
+          "unit": "percent",
           "min": 0,
           "max": 100,
           "decimals": 1
@@ -918,7 +926,7 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "expr": "100 * avg_over_time(pingpong_connection_up[$__range])",
+          "expr": "100 * avg_over_time(pingpong_connection_up[1h])",
           "legendFormat": "Uptime %",
           "refId": "A"
         }
