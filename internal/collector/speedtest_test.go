@@ -22,15 +22,42 @@ func TestParseSpeedtestOutput(t *testing.T) {
 		t.Fatalf("failed to parse: %v", err)
 	}
 
-	// bandwidth is bytes/sec, convert to Mbps: 12500000 * 8 / 1000000 = 100
 	if result.DownloadMbps != 100.0 {
 		t.Fatalf("expected download 100 Mbps, got %f", result.DownloadMbps)
 	}
-	// 6250000 * 8 / 1000000 = 50
 	if result.UploadMbps != 50.0 {
 		t.Fatalf("expected upload 50 Mbps, got %f", result.UploadMbps)
 	}
 	if result.LatencyMs != 12.345 {
 		t.Fatalf("expected latency 12.345, got %f", result.LatencyMs)
+	}
+	if result.ServerName != "Test Server" {
+		t.Fatalf("expected server name 'Test Server', got %q", result.ServerName)
+	}
+	if result.ServerLocation != "Test City" {
+		t.Fatalf("expected server location 'Test City', got %q", result.ServerLocation)
+	}
+	if result.ISP != "Test ISP" {
+		t.Fatalf("expected ISP 'Test ISP', got %q", result.ISP)
+	}
+}
+
+func TestParseSpeedtestOutputMissingMetadata(t *testing.T) {
+	output := `{
+		"ping": {"latency": 10.0},
+		"download": {"bandwidth": 1000000},
+		"upload": {"bandwidth": 500000}
+	}`
+
+	result, err := parseSpeedtestOutput([]byte(output))
+	if err != nil {
+		t.Fatalf("failed to parse: %v", err)
+	}
+
+	if result.ServerName != "" {
+		t.Fatalf("expected empty server name, got %q", result.ServerName)
+	}
+	if result.ISP != "" {
+		t.Fatalf("expected empty ISP, got %q", result.ISP)
 	}
 }

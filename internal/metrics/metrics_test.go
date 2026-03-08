@@ -49,6 +49,21 @@ func TestMetricsRegistration(t *testing.T) {
 	if m.TracerouteHopLatency == nil {
 		t.Fatal("TracerouteHopLatency gauge should not be nil")
 	}
+	if m.DNSFailures == nil {
+		t.Fatal("DNSFailures counter should not be nil")
+	}
+	if m.SpeedtestFailures == nil {
+		t.Fatal("SpeedtestFailures counter should not be nil")
+	}
+	if m.TracerouteFailures == nil {
+		t.Fatal("TracerouteFailures counter should not be nil")
+	}
+	if m.ConnectionFlaps == nil {
+		t.Fatal("ConnectionFlaps counter should not be nil")
+	}
+	if m.SpeedtestInfo == nil {
+		t.Fatal("SpeedtestInfo gauge should not be nil")
+	}
 
 	// Verify metrics were actually registered by gathering
 	families, err := reg.Gather()

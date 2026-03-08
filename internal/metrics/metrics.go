@@ -16,6 +16,11 @@ type Metrics struct {
 	DowntimeTotal        prometheus.Counter
 	TracerouteHops       *prometheus.GaugeVec
 	TracerouteHopLatency *prometheus.GaugeVec
+	DNSFailures          *prometheus.CounterVec
+	SpeedtestFailures    prometheus.Counter
+	TracerouteFailures   prometheus.Counter
+	ConnectionFlaps      prometheus.Counter
+	SpeedtestInfo        *prometheus.GaugeVec
 }
 
 func New(reg prometheus.Registerer) *Metrics {
@@ -55,7 +60,7 @@ func New(reg prometheus.Registerer) *Metrics {
 		DNSResolution: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "pingpong_dns_resolution_ms",
 			Help: "DNS resolution time in milliseconds",
-		}, []string{"target"}),
+		}, []string{"target", "server"}),
 		ConnectionUp: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "pingpong_connection_up",
 			Help: "Whether the internet connection is up (1) or down (0)",
@@ -72,15 +77,36 @@ func New(reg prometheus.Registerer) *Metrics {
 			Name: "pingpong_traceroute_hop_latency_ms",
 			Help: "Latency per traceroute hop in milliseconds",
 		}, []string{"target", "hop", "address"}),
+		DNSFailures: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "pingpong_dns_failures_total",
+			Help: "Total DNS lookup failures",
+		}, []string{"target", "server"}),
+		SpeedtestFailures: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "pingpong_speedtest_failures_total",
+			Help: "Total speedtest execution failures",
+		}),
+		TracerouteFailures: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "pingpong_traceroute_failures_total",
+			Help: "Total traceroute execution failures",
+		}),
+		ConnectionFlaps: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "pingpong_connection_flaps_total",
+			Help: "Total connection state transitions (up/down flaps)",
+		}),
+		SpeedtestInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "pingpong_speedtest_info",
+			Help: "Speedtest server metadata",
+		}, []string{"server_name", "server_location", "isp"}),
 	}
 
 	reg.MustRegister(
 		m.PingLatency, m.PingMin, m.PingMax,
 		m.Jitter, m.PacketLoss,
 		m.DownloadSpeed, m.UploadSpeed, m.SpeedtestLatency,
-		m.DNSResolution,
-		m.ConnectionUp, m.DowntimeTotal,
-		m.TracerouteHops, m.TracerouteHopLatency,
+		m.DNSResolution, m.DNSFailures,
+		m.ConnectionUp, m.DowntimeTotal, m.ConnectionFlaps,
+		m.TracerouteHops, m.TracerouteHopLatency, m.TracerouteFailures,
+		m.SpeedtestFailures, m.SpeedtestInfo,
 	)
 
 	return m

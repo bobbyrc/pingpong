@@ -23,13 +23,13 @@ PingPong is a single Go binary that monitors network quality (ping, DNS, speedte
 ### Package Layout
 
 - **`cmd/pingpong/main.go`** — Entrypoint. Wires together all components, runs 6 concurrent goroutines (4 collectors + alert retry + HTTP server) managed by `sync.WaitGroup` + `context.Context` for graceful shutdown. Contains connection state machine (`connDown`/`downSince` behind a mutex).
-- **`internal/collector/`** — Measurement collectors (ping, dns, speedtest, traceroute). Each has a `Collect(ctx)` method returning typed results. Speedtest and traceroute shell out to external binaries; ping uses `pro-bing`; DNS uses `net.Resolver`.
-- **`internal/metrics/`** — Prometheus metric registration. Single `Metrics` struct with all gauges/counters, created with `metrics.New(registry)`.
+- **`internal/collector/`** — Measurement collectors (ping, dns, speedtest, traceroute). Each has a `Collect(ctx)` method returning typed results. DNS collector supports multiple targets and servers (always includes system resolver). Speedtest and traceroute shell out to external binaries; ping uses `pro-bing`; DNS uses `net.Resolver`.
+- **`internal/metrics/`** — Prometheus metric registration. Single `Metrics` struct with 18 metrics (gauges, counters, gauge vecs), created with `metrics.New(registry)`.
 - **`internal/alerter/`** — Three components:
   - `Queue` — SQLite-backed durable alert queue (WAL mode, via `sqlx` + `modernc.org/sqlite`).
   - `AppriseClient` — HTTP client posting to Apprise API `/notify` endpoint.
   - `Engine` — Threshold evaluation with per-target cooldowns (in-memory map keyed by `"alertType:target"`, seeded from DB on startup via `SeedCooldowns()`/`AllCooldowns()`). The `cooldown_key` is persisted in the alerts table so per-target cooldowns survive restarts. Calls `queue.Enqueue()` when thresholds crossed, `ProcessQueue()` drains pending alerts.
-- **`internal/config/`** — Env-var-only config. All vars prefixed `PINGPONG_*`. Defaults hardcoded in `config.Load()`.
+- **`internal/config/`** — Env-var-only config. All vars prefixed `PINGPONG_*`. Defaults hardcoded in `config.Load()`. DNS config supports plural env vars (`PINGPONG_DNS_TARGETS`, `PINGPONG_DNS_SERVERS`) with backwards-compat fallback to singular forms.
 
 ### Data Flow
 
@@ -57,5 +57,9 @@ Docker Compose stack with 4 containers: `pingpong` (Go app, port 4040), `prometh
 - Prometheus metrics use a dedicated registry (not the global default)
 - Collectors are stateless; all state lives in metrics or the alert engine
 - Traceroute hop latency metric uses separate `hop` (number) and `address` labels; `TracerouteHopLatency.Reset()` is called before each cycle to avoid stale series
+- DNS resolution metric has `target` and `server` labels; failure counters track DNS, speedtest, and traceroute errors
+- Connection flap counter (`pingpong_connection_flaps_total`) tracks up/down state transitions
+- Speedtest info metric (`pingpong_speedtest_info`) exposes server name, location, and ISP as labels; `Reset()` is called before each update to avoid stale label sets
+- Speedtest collector supports optional server pinning via `PINGPONG_SPEEDTEST_SERVER_ID`
 - Speedtest and traceroute collectors shell out to CLI binaries only available inside the Docker image; their unit tests exercise output parsing only, not actual execution
 - Ping integration tests require `CAP_NET_RAW` (root or Docker); use `-short` to skip them locally

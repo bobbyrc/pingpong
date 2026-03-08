@@ -12,7 +12,9 @@ func TestLoadDefaults(t *testing.T) {
 		"PINGPONG_PING_INTERVAL",
 		"PINGPONG_SPEEDTEST_INTERVAL",
 		"PINGPONG_DNS_TARGET",
+		"PINGPONG_DNS_TARGETS",
 		"PINGPONG_DNS_SERVER",
+		"PINGPONG_DNS_SERVERS",
 		"PINGPONG_DNS_INTERVAL",
 		"PINGPONG_TRACEROUTE_TARGET",
 		"PINGPONG_TRACEROUTE_INTERVAL",
@@ -26,6 +28,7 @@ func TestLoadDefaults(t *testing.T) {
 		"PINGPONG_ALERT_RETRY_INTERVAL",
 		"PINGPONG_APPRISE_URL",
 		"PINGPONG_APPRISE_URLS",
+		"PINGPONG_SPEEDTEST_SERVER_ID",
 		"PINGPONG_LISTEN_ADDR",
 		"PINGPONG_DATA_DIR",
 	} {
@@ -49,8 +52,11 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.SpeedtestInterval != 30*time.Minute {
 		t.Fatalf("expected speedtest interval 30m, got %v", cfg.SpeedtestInterval)
 	}
-	if cfg.DNSTarget != "google.com" {
-		t.Fatalf("expected DNS target google.com, got %s", cfg.DNSTarget)
+	if len(cfg.DNSTargets) != 3 {
+		t.Fatalf("expected 3 default DNS targets, got %d: %v", len(cfg.DNSTargets), cfg.DNSTargets)
+	}
+	if cfg.DNSTargets[0] != "google.com" {
+		t.Fatalf("expected first DNS target google.com, got %s", cfg.DNSTargets[0])
 	}
 	if cfg.ListenAddr != ":4040" {
 		t.Fatalf("expected listen addr :4040, got %s", cfg.ListenAddr)
@@ -85,5 +91,61 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 	if cfg.ListenAddr != ":9090" {
 		t.Fatalf("expected listen addr :9090, got %s", cfg.ListenAddr)
+	}
+}
+
+func TestLoadDNSTargetsPlural(t *testing.T) {
+	t.Setenv("PINGPONG_DNS_TARGETS", "google.com,github.com")
+	t.Setenv("PINGPONG_DNS_TARGET", "")
+	t.Setenv("PINGPONG_DNS_SERVERS", "1.1.1.1,8.8.8.8")
+	t.Setenv("PINGPONG_DNS_SERVER", "")
+	cfg := Load()
+	if len(cfg.DNSTargets) != 2 {
+		t.Fatalf("expected 2 DNS targets, got %d", len(cfg.DNSTargets))
+	}
+	if cfg.DNSTargets[0] != "google.com" {
+		t.Fatalf("expected first DNS target google.com, got %s", cfg.DNSTargets[0])
+	}
+	if len(cfg.DNSServers) != 2 {
+		t.Fatalf("expected 2 DNS servers, got %d", len(cfg.DNSServers))
+	}
+	if cfg.DNSServers[0] != "1.1.1.1" {
+		t.Fatalf("expected first DNS server 1.1.1.1, got %s", cfg.DNSServers[0])
+	}
+}
+
+func TestLoadDNSTargetsFallback(t *testing.T) {
+	t.Setenv("PINGPONG_DNS_TARGETS", "")
+	t.Setenv("PINGPONG_DNS_TARGET", "example.com")
+	t.Setenv("PINGPONG_DNS_SERVERS", "")
+	t.Setenv("PINGPONG_DNS_SERVER", "9.9.9.9")
+	cfg := Load()
+	if len(cfg.DNSTargets) != 1 || cfg.DNSTargets[0] != "example.com" {
+		t.Fatalf("expected fallback to singular DNS target, got %v", cfg.DNSTargets)
+	}
+	if len(cfg.DNSServers) != 1 || cfg.DNSServers[0] != "9.9.9.9" {
+		t.Fatalf("expected fallback to singular DNS server, got %v", cfg.DNSServers)
+	}
+}
+
+func TestLoadDNSTargetsDefaults(t *testing.T) {
+	t.Setenv("PINGPONG_DNS_TARGETS", "")
+	t.Setenv("PINGPONG_DNS_TARGET", "")
+	t.Setenv("PINGPONG_DNS_SERVERS", "")
+	t.Setenv("PINGPONG_DNS_SERVER", "")
+	cfg := Load()
+	if len(cfg.DNSTargets) != 3 {
+		t.Fatalf("expected 3 default DNS targets, got %d: %v", len(cfg.DNSTargets), cfg.DNSTargets)
+	}
+	if len(cfg.DNSServers) != 0 {
+		t.Fatalf("expected 0 default DNS servers (system only), got %d", len(cfg.DNSServers))
+	}
+}
+
+func TestLoadSpeedtestServerID(t *testing.T) {
+	t.Setenv("PINGPONG_SPEEDTEST_SERVER_ID", "12345")
+	cfg := Load()
+	if cfg.SpeedtestServerID != "12345" {
+		t.Fatalf("expected server ID 12345, got %s", cfg.SpeedtestServerID)
 	}
 }
