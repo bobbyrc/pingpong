@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -44,6 +45,7 @@ func WriteEnvFile(path string, updates map[string]string) error {
 	if err != nil {
 		return fmt.Errorf("open env file: %w", err)
 	}
+	defer f.Close()
 
 	var lines []string
 	seen := make(map[string]bool)
@@ -72,16 +74,19 @@ func WriteEnvFile(path string, updates map[string]string) error {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		f.Close()
 		return fmt.Errorf("scan env file: %w", err)
 	}
-	f.Close()
 
 	// Append any new keys not already in the file.
-	for key, val := range updates {
+	var newKeys []string
+	for key := range updates {
 		if !seen[key] {
-			lines = append(lines, key+"="+val)
+			newKeys = append(newKeys, key)
 		}
+	}
+	sort.Strings(newKeys)
+	for _, key := range newKeys {
+		lines = append(lines, key+"="+updates[key])
 	}
 
 	content := strings.Join(lines, "\n") + "\n"
