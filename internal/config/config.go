@@ -8,11 +8,11 @@ import (
 )
 
 type Config struct {
-	PingTargets      []string
-	PingCount        int
-	DNSTargets       []string
-	DNSServers       []string
-	TracerouteTarget string
+	PingTargets       []string
+	PingCount         int
+	DNSTargets        []string
+	DNSServers        []string
+	TracerouteTarget  string
 	SpeedtestServerID string
 
 	PingInterval       time.Duration

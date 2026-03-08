@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestDNSCollectorMultiTarget(t *testing.T) {
@@ -11,7 +12,7 @@ func TestDNSCollectorMultiTarget(t *testing.T) {
 	}
 
 	c := NewDNSCollector([]string{"google.com", "cloudflare.com"}, nil)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*1e9)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	results, failures := c.Collect(ctx)
@@ -37,7 +38,7 @@ func TestDNSCollectorWithServer(t *testing.T) {
 	}
 
 	c := NewDNSCollector([]string{"google.com"}, []string{"1.1.1.1"})
-	ctx, cancel := context.WithTimeout(context.Background(), 10*1e9)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	results, failures := c.Collect(ctx)
