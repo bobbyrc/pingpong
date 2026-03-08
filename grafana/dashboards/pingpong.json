@@ -1245,7 +1245,7 @@
                 "type": "loki",
                 "uid": "loki"
               },
-              "expr": "{container=~\".*pingpong.*\"} |= ``",
+              "expr": "{container=\"pingpong\"}",
               "refId": "A"
             }
           ],

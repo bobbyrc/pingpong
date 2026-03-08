@@ -73,7 +73,8 @@ services:
       - monitoring
     volumes:
       - ./promtail.yml:/etc/promtail/config.yml:ro
-      - /var/lib/docker/containers:/var/log/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
     depends_on:
       - loki
 
