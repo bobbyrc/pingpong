@@ -10,9 +10,10 @@ import (
 type Config struct {
 	PingTargets      []string
 	PingCount        int
-	DNSTarget        string
-	DNSServer        string
+	DNSTargets       []string
+	DNSServers       []string
 	TracerouteTarget string
+	SpeedtestServerID string
 
 	PingInterval       time.Duration
 	SpeedtestInterval  time.Duration
@@ -39,9 +40,10 @@ func Load() *Config {
 	return &Config{
 		PingTargets:              getStringSlice("PINGPONG_PING_TARGETS", []string{"1.1.1.1", "8.8.8.8", "208.67.222.222"}),
 		PingCount:                getInt("PINGPONG_PING_COUNT", 10),
-		DNSTarget:                getString("PINGPONG_DNS_TARGET", "google.com"),
-		DNSServer:                getString("PINGPONG_DNS_SERVER", ""),
+		DNSTargets:               loadDNSTargets(),
+		DNSServers:               loadDNSServers(),
 		TracerouteTarget:         getString("PINGPONG_TRACEROUTE_TARGET", "1.1.1.1"),
+		SpeedtestServerID:        getString("PINGPONG_SPEEDTEST_SERVER_ID", ""),
 		PingInterval:             getDuration("PINGPONG_PING_INTERVAL", 60*time.Second),
 		SpeedtestInterval:        getDuration("PINGPONG_SPEEDTEST_INTERVAL", 30*time.Minute),
 		DNSInterval:              getDuration("PINGPONG_DNS_INTERVAL", 5*time.Minute),
@@ -59,6 +61,26 @@ func Load() *Config {
 		ListenAddr:               getString("PINGPONG_LISTEN_ADDR", ":4040"),
 		DataDir:                  getString("PINGPONG_DATA_DIR", "/data"),
 	}
+}
+
+func loadDNSTargets() []string {
+	if targets := getStringSlice("PINGPONG_DNS_TARGETS", nil); len(targets) > 0 {
+		return targets
+	}
+	if target := getString("PINGPONG_DNS_TARGET", ""); target != "" {
+		return []string{target}
+	}
+	return []string{"google.com", "cloudflare.com", "github.com"}
+}
+
+func loadDNSServers() []string {
+	if servers := getStringSlice("PINGPONG_DNS_SERVERS", nil); len(servers) > 0 {
+		return servers
+	}
+	if server := getString("PINGPONG_DNS_SERVER", ""); server != "" {
+		return []string{server}
+	}
+	return nil
 }
 
 func getString(key, fallback string) string {
