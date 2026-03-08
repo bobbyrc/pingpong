@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bobbyrc/pingpong/internal/alerter"
@@ -91,8 +92,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/alerts", h.alertsAPI)
 
 	// Static files
-	staticContent, _ := fs.Sub(staticFS, "static")
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticContent))))
+	staticContent, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		slog.Error("failed to create static sub-filesystem", "error", err)
+	} else {
+		mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticContent))))
+	}
 }
 
 // Start launches the SSE broadcaster in a background goroutine.
@@ -162,13 +167,18 @@ func (h *Handler) alertsPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// jsonError writes a JSON-encoded error response with the given status code.
+func jsonError(w http.ResponseWriter, msg string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
 // configAPI handles GET (read env file) and POST (write env file) for the
 // configuration API.
 func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	if h.envPath == "" {
-		http.Error(w, `{"error":"no env file configured"}`, http.StatusNotFound)
+		jsonError(w, "no env file configured", http.StatusNotFound)
 		return
 	}
 
@@ -177,34 +187,45 @@ func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
 		env, err := ReadEnvFile(h.envPath)
 		if err != nil {
 			slog.Error("failed to read env file", "error", err)
-			http.Error(w, `{"error":"failed to read env file"}`, http.StatusInternalServerError)
+			jsonError(w, "failed to read env file", http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(env)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MiB
+
 		var updates map[string]string
 		if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-			http.Error(w, `{"error":"invalid JSON body"}`, http.StatusBadRequest)
+			jsonError(w, "invalid JSON body", http.StatusBadRequest)
 			return
 		}
+
+		for k, v := range updates {
+			if strings.ContainsAny(k, "=\n\r") || strings.ContainsAny(v, "\n\r") {
+				jsonError(w, "invalid key or value", http.StatusBadRequest)
+				return
+			}
+		}
+
 		if err := WriteEnvFile(h.envPath, updates); err != nil {
 			slog.Error("failed to write env file", "error", err)
-			http.Error(w, `{"error":"failed to write env file"}`, http.StatusInternalServerError)
+			jsonError(w, "failed to write env file", http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 
 	default:
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 // alertsAPI returns paginated alerts as JSON.
 func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	if h.queue == nil {
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"alerts": []interface{}{},
 			"total":  0,
@@ -222,10 +243,11 @@ func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
 	alerts, total, err := h.queue.RecentAlerts(perPage, offset)
 	if err != nil {
 		slog.Error("failed to query alerts API", "error", err)
-		http.Error(w, `{"error":"failed to query alerts"}`, http.StatusInternalServerError)
+		jsonError(w, "failed to query alerts", http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"alerts":     alerts,
 		"total":      total,
