@@ -102,9 +102,9 @@ If PingPong runs directly on the host (outside Docker), use the host's IP addres
 | Packet loss | Percentage of lost ICMP packets per target | 60s |
 | Download speed | Download throughput via Ookla Speedtest CLI (Mbps) | 30m |
 | Upload speed | Upload throughput via Ookla Speedtest CLI (Mbps) | 30m |
-| DNS resolution | Time to resolve a domain against a configured DNS server (ms) | 5m |
+| DNS resolution | Time to resolve domains against configured DNS servers (ms) | 5m |
 | Traceroute | Hop count and per-hop latency to a target | 15m |
-| Connection uptime | Up/down state derived from ping success, with downtime duration tracking | Continuous |
+| Connection uptime | Up/down state derived from ping success, with downtime duration and flap detection | Continuous |
 
 All intervals are configurable. See the Configuration section below.
 
@@ -146,13 +146,14 @@ All intervals are configurable. See the Configuration section below.
 
 Copy `.env.example` to `.env` and edit as needed. The file is organized into four sections:
 
-**Targets** — which hosts to ping, which domain to resolve, which host to traceroute:
+**Targets** — which hosts to ping, which domains to resolve, which DNS servers to use, which host to traceroute:
 ```env
 PINGPONG_PING_TARGETS=1.1.1.1,8.8.8.8,208.67.222.222
 PINGPONG_PING_COUNT=10
-PINGPONG_DNS_TARGET=google.com
-PINGPONG_DNS_SERVER=              # empty = use system default
+PINGPONG_DNS_TARGETS=google.com,cloudflare.com,github.com
+PINGPONG_DNS_SERVERS=              # empty = system resolver only; add servers like 1.1.1.1,8.8.8.8
 PINGPONG_TRACEROUTE_TARGET=1.1.1.1
+PINGPONG_SPEEDTEST_SERVER_ID=      # empty = auto-select; set to pin a specific Ookla server
 ```
 
 **Intervals** — how often each measurement runs:
