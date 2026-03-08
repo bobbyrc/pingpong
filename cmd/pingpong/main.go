@@ -38,7 +38,7 @@ func main() {
 	m := metrics.New(reg)
 
 	pingCollector := collector.NewPingCollector(cfg.PingTargets, cfg.PingCount)
-	speedCollector := collector.NewSpeedtestCollector()
+	speedCollector := collector.NewSpeedtestCollector(cfg.SpeedtestServerID)
 	dnsCollector := collector.NewDNSCollector(cfg.DNSTarget, cfg.DNSServer)
 	traceCollector := collector.NewTracerouteCollector(cfg.TracerouteTarget)
 
