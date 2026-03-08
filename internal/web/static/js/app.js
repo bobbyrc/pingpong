@@ -6,6 +6,10 @@
 (function () {
     'use strict';
 
+    // ── Client-side state ───────────────────────────────────────
+
+    var outageStartedAt = null; // Date when UI first saw connection_up == 0
+
     // ── Formatting Helpers ──────────────────────────────────────
 
     function formatLatency(ms) {
@@ -225,11 +229,14 @@
 
         if (bannerText) {
             if (isUp) {
+                outageStartedAt = null;
                 bannerText.textContent = 'Connection Up';
             } else {
-                var downtimeEntry = first(metrics, 'pingpong_downtime_seconds_total');
-                var downSec = downtimeEntry ? downtimeEntry.value : 0;
-                bannerText.textContent = 'Down for ' + formatDuration(downSec);
+                if (!outageStartedAt) {
+                    outageStartedAt = new Date();
+                }
+                var currentOutageSec = (Date.now() - outageStartedAt.getTime()) / 1000;
+                bannerText.textContent = 'Down for ' + formatDuration(currentOutageSec);
             }
         }
 
@@ -627,7 +634,7 @@
             var payload = {};
             for (var i = 0; i < inputs.length; i++) {
                 var input = inputs[i];
-                if (input.name && input.value !== '') {
+                if (input.name) {
                     payload[input.name] = input.value;
                 }
             }
