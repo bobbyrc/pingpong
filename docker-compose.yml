@@ -52,6 +52,32 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:latest
+    container_name: pingpong-loki
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: pingpong-promtail
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    volumes:
+      - ./promtail.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - promtail-positions:/var/lib/promtail
+    depends_on:
+      - loki
 
   apprise:
     image: caronc/apprise:latest
@@ -70,3 +96,5 @@ volumes:
   pingpong-data:
   prometheus-data:
   grafana-data:
+  loki-data:
+  promtail-positions:
