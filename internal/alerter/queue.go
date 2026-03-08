@@ -125,6 +125,13 @@ func (q *Queue) LastSentTime(cooldownKey string) (time.Time, bool, error) {
 
 // RecentAlerts returns a paginated list of all alerts (any status), most recent first.
 func (q *Queue) RecentAlerts(limit, offset int) ([]Alert, int, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
 	var total int
 	if err := q.db.Get(&total, "SELECT COUNT(*) FROM alerts"); err != nil {
 		return nil, 0, err

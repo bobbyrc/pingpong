@@ -180,6 +180,26 @@ func TestRecentAlerts(t *testing.T) {
 	}
 }
 
+func TestRecentAlertsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	q, err := NewQueue(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("failed to create queue: %v", err)
+	}
+	defer q.Close()
+
+	alerts, total, err := q.RecentAlerts(10, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if total != 0 {
+		t.Fatalf("expected total 0, got %d", total)
+	}
+	if len(alerts) != 0 {
+		t.Fatalf("expected 0 alerts, got %d", len(alerts))
+	}
+}
+
 func TestQueuePersistence(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
