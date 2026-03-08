@@ -1,0 +1,130 @@
+{{define "content"}}
+<!-- Connection Banner -->
+<div class="connection-banner" id="connection-banner">
+    <div class="connection-banner-inner">
+        <span class="connection-banner-icon" id="connection-banner-icon">&#9679;</span>
+        <span class="connection-banner-text" id="connection-banner-text">Waiting for data&hellip;</span>
+        <span class="connection-banner-detail" id="connection-banner-detail"></span>
+    </div>
+</div>
+
+<!-- Ping Section -->
+<section class="section">
+    <div class="section-header">
+        <h2 class="section-title">Ping</h2>
+        <span class="section-subtitle" id="ping-last-update"></span>
+    </div>
+    <div class="card-grid" id="ping-cards">
+        <!-- Ping target cards are created dynamically by JS -->
+    </div>
+</section>
+
+<!-- Speed Test & DNS Section -->
+<section class="section">
+    <div class="two-col">
+        <!-- Speed Test Card -->
+        <div class="card card-large">
+            <div class="card-header">
+                <h3 class="card-title">Speed Test</h3>
+                <span class="card-subtitle" id="speedtest-last-update"></span>
+            </div>
+            <div class="card-body">
+                <div class="metric-row">
+                    <div class="metric">
+                        <span class="metric-value" id="speedtest-download">--</span>
+                        <span class="metric-label">Download <span class="metric-unit">Mbps</span></span>
+                        <canvas class="sparkline" id="speedtest-download-spark" width="200" height="60"></canvas>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-value" id="speedtest-upload">--</span>
+                        <span class="metric-label">Upload <span class="metric-unit">Mbps</span></span>
+                        <canvas class="sparkline" id="speedtest-upload-spark" width="200" height="60"></canvas>
+                    </div>
+                </div>
+                <div class="metric-row metric-row-secondary">
+                    <div class="metric metric-small">
+                        <span class="metric-value-sm" id="speedtest-latency">--</span>
+                        <span class="metric-label">Latency <span class="metric-unit">ms</span></span>
+                    </div>
+                    <div class="metric metric-small">
+                        <span class="metric-value-sm" id="speedtest-jitter">--</span>
+                        <span class="metric-label">Jitter <span class="metric-unit">ms</span></span>
+                    </div>
+                </div>
+                <div class="speedtest-server" id="speedtest-server">
+                    <span class="speedtest-server-label">Server:</span>
+                    <span id="speedtest-server-name">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- DNS Card -->
+        <div class="card card-large">
+            <div class="card-header">
+                <h3 class="card-title">DNS Resolution</h3>
+                <span class="card-subtitle" id="dns-last-update"></span>
+            </div>
+            <div class="card-body">
+                <div class="dns-table-wrapper">
+                    <table class="table" id="dns-table">
+                        <thead>
+                            <tr>
+                                <th>Target</th>
+                                <th>Server</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dns-table-body">
+                            <!-- DNS rows populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="metric-row metric-row-secondary">
+                    <div class="metric metric-small">
+                        <span class="metric-value-sm" id="dns-failures">0</span>
+                        <span class="metric-label">Failures</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Traceroute Section -->
+<section class="section">
+    <div class="card card-full">
+        <div class="card-header">
+            <h3 class="card-title">Traceroute</h3>
+            <span class="card-subtitle" id="traceroute-target"></span>
+            <span class="card-subtitle" id="traceroute-last-update"></span>
+        </div>
+        <div class="card-body">
+            <div class="traceroute-table-wrapper">
+                <table class="table" id="traceroute-table">
+                    <thead>
+                        <tr>
+                            <th class="col-hop">Hop</th>
+                            <th class="col-address">Address</th>
+                            <th class="col-latency">Latency</th>
+                            <th class="col-bar">&nbsp;</th>
+                        </tr>
+                    </thead>
+                    <tbody id="traceroute-table-body">
+                        <!-- Traceroute hops populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="metric-row metric-row-secondary">
+                <div class="metric metric-small">
+                    <span class="metric-value-sm" id="traceroute-hops">--</span>
+                    <span class="metric-label">Total Hops</span>
+                </div>
+                <div class="metric metric-small">
+                    <span class="metric-value-sm" id="traceroute-failures">0</span>
+                    <span class="metric-label">Failures</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{{end}}

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>PingPong &mdash; {{.Title}}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏓</text></svg>">
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <a href="/" class="logo">
+                <span class="logo-icon">&#9679;</span>
+                PingPong
+            </a>
+            <nav class="nav">
+                <a href="/" class="nav-link{{if eq .Active "dashboard"}} active{{end}}">Dashboard</a>
+                <a href="/alerts" class="nav-link{{if eq .Active "alerts"}} active{{end}}">Alerts</a>
+                <a href="/config" class="nav-link{{if eq .Active "config"}} active{{end}}">Config</a>
+            </nav>
+            <div class="header-status">
+                <span class="status-dot" id="header-status-dot" title="Connection status"></span>
+                <span class="status-label" id="header-status-label">Checking&hellip;</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        {{template "content" .}}
+    </main>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
