@@ -464,6 +464,12 @@ button, input, select, textarea {
     animation: loading-pulse 1.5s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .loading {
+        animation: none;
+    }
+}
+
 .loading-placeholder {
     text-align: center;
     padding: 40px 20px;

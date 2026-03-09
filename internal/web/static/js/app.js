@@ -452,7 +452,7 @@
         if (jitEl) {
             var jitEntry = first(metrics, 'pingpong_speedtest_jitter_ms');
             setText(jitEl, jitEntry ? formatLatency(jitEntry.value) : '--');
-            removeLoading(jitEl);
+            if (jitEntry) removeLoading(jitEl);
         }
 
         // Server info
