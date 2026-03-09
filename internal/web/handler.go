@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,8 @@ var templateFS embed.FS
 
 //go:embed static
 var staticFS embed.FS
+
+var validEnvKey = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // Handler serves the web UI pages, API endpoints, and static assets.
 type Handler struct {
@@ -203,7 +206,7 @@ func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for k, v := range updates {
-			if strings.ContainsAny(k, "=\n\r") || strings.ContainsAny(v, "\n\r") {
+			if !validEnvKey.MatchString(k) || strings.ContainsAny(v, "\n\r") {
 				jsonError(w, "invalid key or value", http.StatusBadRequest)
 				return
 			}
@@ -247,11 +250,16 @@ func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	totalPages := int(math.Ceil(float64(total) / float64(perPage)))
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"alerts":     alerts,
 		"total":      total,
 		"page":       page,
-		"totalPages": int(math.Ceil(float64(total) / float64(perPage))),
+		"totalPages": totalPages,
 	})
 }
