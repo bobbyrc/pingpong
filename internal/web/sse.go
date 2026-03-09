@@ -30,6 +30,7 @@ type MetricValue struct {
 type Broadcaster struct {
 	gatherer prometheus.Gatherer
 	interval time.Duration
+	history  *HistoryStore // may be nil
 
 	mu      sync.Mutex
 	clients map[chan []byte]struct{}
@@ -37,10 +38,11 @@ type Broadcaster struct {
 
 // NewBroadcaster creates a Broadcaster that reads from the given gatherer
 // every interval.
-func NewBroadcaster(gatherer prometheus.Gatherer, interval time.Duration) *Broadcaster {
+func NewBroadcaster(gatherer prometheus.Gatherer, interval time.Duration, history *HistoryStore) *Broadcaster {
 	return &Broadcaster{
 		gatherer: gatherer,
 		interval: interval,
+		history:  history,
 		clients:  make(map[chan []byte]struct{}),
 	}
 }
@@ -62,9 +64,17 @@ func (b *Broadcaster) Run(ctx context.Context) {
 
 // broadcast gathers a snapshot and sends it to every connected client.
 func (b *Broadcaster) broadcast() {
-	data, err := b.snapshotJSON()
+	snap, err := b.gatherSnapshot()
 	if err != nil {
 		slog.Error("failed to gather metrics snapshot", "error", err)
+		return
+	}
+
+	b.recordHistory(snap)
+
+	data, err := json.Marshal(snap)
+	if err != nil {
+		slog.Error("failed to marshal metrics snapshot", "error", err)
 		return
 	}
 
@@ -76,6 +86,52 @@ func (b *Broadcaster) broadcast() {
 		case ch <- data:
 		default:
 			// Client is slow; drop this message to avoid blocking.
+		}
+	}
+}
+
+// recordHistory persists sparkline-relevant metrics from the snapshot.
+func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
+	if b.history == nil {
+		return
+	}
+
+	const keep = 60
+
+	// Ping latency per target
+	for _, mv := range snap.Metrics["pingpong_ping_latency_ms"] {
+		target := ""
+		if mv.Labels != nil {
+			target = mv.Labels["target"]
+		}
+		if err := b.history.Record("ping_latency", target, mv.Value); err != nil {
+			slog.Error("failed to record ping history", "target", target, "error", err)
+			continue
+		}
+		if err := b.history.Prune("ping_latency", target, keep); err != nil {
+			slog.Error("failed to prune ping history", "target", target, "error", err)
+		}
+	}
+
+	// Download speed
+	for _, mv := range snap.Metrics["pingpong_download_speed_mbps"] {
+		if err := b.history.Record("download_speed", "", mv.Value); err != nil {
+			slog.Error("failed to record download history", "error", err)
+			continue
+		}
+		if err := b.history.Prune("download_speed", "", keep); err != nil {
+			slog.Error("failed to prune download history", "error", err)
+		}
+	}
+
+	// Upload speed
+	for _, mv := range snap.Metrics["pingpong_upload_speed_mbps"] {
+		if err := b.history.Record("upload_speed", "", mv.Value); err != nil {
+			slog.Error("failed to record upload history", "error", err)
+			continue
+		}
+		if err := b.history.Prune("upload_speed", "", keep); err != nil {
+			slog.Error("failed to prune upload history", "error", err)
 		}
 	}
 }

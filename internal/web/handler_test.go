@@ -14,7 +14,7 @@ import (
 
 func TestDashboardReturnsHTML(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestDashboardReturnsHTML(t *testing.T) {
 
 func TestDashboardNotFoundForOtherPaths(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestConfigAPIRoundTrip(t *testing.T) {
 	}
 
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, envPath)
+	h, err := NewHandler(reg, nil, nil, envPath)
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestConfigAPIRoundTrip(t *testing.T) {
 
 func TestConfigAPINoEnvPath(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestConfigAPINoEnvPath(t *testing.T) {
 
 func TestStaticFileServing(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestStaticFileServing(t *testing.T) {
 
 func TestAlertsPageNilQueue(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestConfigAPIMissingEnvFile(t *testing.T) {
 	envPath := filepath.Join(dir, ".env")
 
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, envPath)
+	h, err := NewHandler(reg, nil, nil, envPath)
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestConfigAPIMissingEnvFile(t *testing.T) {
 
 func TestAlertsAPINilQueue(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}

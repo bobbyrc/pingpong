@@ -33,6 +33,7 @@ type Handler struct {
 	pages       map[string]*template.Template // keyed by page filename
 	broadcaster *Broadcaster
 	queue       *alerter.Queue // may be nil
+	history     *HistoryStore  // may be nil
 	envPath     string         // may be empty
 }
 
@@ -48,7 +49,7 @@ type pageData struct {
 
 // NewHandler creates a Handler that renders templates, broadcasts SSE
 // metrics, and serves the config and alerts APIs.
-func NewHandler(reg *prometheus.Registry, queue *alerter.Queue, envPath string) (*Handler, error) {
+func NewHandler(reg *prometheus.Registry, queue *alerter.Queue, history *HistoryStore, envPath string) (*Handler, error) {
 	funcMap := template.FuncMap{
 		"add": func(a, b int) int { return a + b },
 		"sub": func(a, b int) int { return a - b },
@@ -74,12 +75,13 @@ func NewHandler(reg *prometheus.Registry, queue *alerter.Queue, envPath string) 
 		pages[pf] = clone
 	}
 
-	b := NewBroadcaster(reg, 5*time.Second)
+	b := NewBroadcaster(reg, 5*time.Second, history)
 
 	return &Handler{
 		pages:       pages,
 		broadcaster: b,
 		queue:       queue,
+		history:     history,
 		envPath:     envPath,
 	}, nil
 }
@@ -96,6 +98,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/config", h.configAPI)
 	mux.HandleFunc("POST /api/config", h.configAPI)
 	mux.HandleFunc("GET /api/alerts", h.alertsAPI)
+	mux.HandleFunc("GET /api/history", h.historyAPI)
 
 	// Static files
 	staticContent, err := fs.Sub(staticFS, "static")
@@ -286,4 +289,23 @@ func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
 		"page":       page,
 		"totalPages": totalPages,
 	})
+}
+
+// historyAPI returns sparkline history as JSON.
+func (h *Handler) historyAPI(w http.ResponseWriter, r *http.Request) {
+	if h.history == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{})
+		return
+	}
+
+	data, err := h.history.LoadAll(60)
+	if err != nil {
+		slog.Error("failed to load metric history", "error", err)
+		jsonError(w, "failed to load history", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
 }

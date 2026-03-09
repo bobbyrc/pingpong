@@ -57,6 +57,12 @@ func main() {
 	}
 	defer queue.Close()
 
+	history, err := web.NewHistoryStore(queue.DB())
+	if err != nil {
+		slog.Error("failed to create history store", "error", err)
+		os.Exit(1)
+	}
+
 	var appriseClient *alerter.AppriseClient
 	if cfg.AppriseURLs != "" {
 		appriseClient = alerter.NewAppriseClient(cfg.AppriseURL, cfg.AppriseURLs)
@@ -71,7 +77,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Web UI
-	webHandler, err := web.NewHandler(reg, queue, cfg.EnvFile)
+	webHandler, err := web.NewHandler(reg, queue, history, cfg.EnvFile)
 	if err != nil {
 		slog.Error("failed to create web handler", "error", err)
 		os.Exit(1)
