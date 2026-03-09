@@ -65,6 +65,11 @@ func (q *Queue) Close() error {
 	return q.db.Close()
 }
 
+// DB returns the underlying database connection for shared use.
+func (q *Queue) DB() *sqlx.DB {
+	return q.db
+}
+
 func (q *Queue) Enqueue(cooldownKey, alertType, title, body string) error {
 	_, err := q.db.Exec(
 		"INSERT INTO alerts (cooldown_key, alert_type, title, body) VALUES (?, ?, ?, ?)",

@@ -200,6 +200,29 @@ func TestRecentAlertsEmpty(t *testing.T) {
 	}
 }
 
+func TestQueueDB(t *testing.T) {
+	dir := t.TempDir()
+	q, err := NewQueue(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("failed to create queue: %v", err)
+	}
+	defer q.Close()
+
+	db := q.DB()
+	if db == nil {
+		t.Fatal("expected non-nil DB")
+	}
+
+	// Verify the returned DB is functional
+	var result int
+	if err := db.Get(&result, "SELECT 1"); err != nil {
+		t.Fatalf("DB query failed: %v", err)
+	}
+	if result != 1 {
+		t.Fatalf("expected 1, got %d", result)
+	}
+}
+
 func TestQueuePersistence(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
