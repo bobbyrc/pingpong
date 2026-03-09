@@ -454,6 +454,23 @@ button, input, select, textarea {
     opacity: 0.9;
 }
 
+/* --- Loading State ----------------------------------------- */
+@keyframes loading-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.loading {
+    animation: loading-pulse 1.5s ease-in-out infinite;
+}
+
+.loading-placeholder {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
 /* --- Speedtest Server -------------------------------------- */
 .speedtest-server {
     margin-top: 12px;
