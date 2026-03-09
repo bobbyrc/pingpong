@@ -73,12 +73,6 @@ func (s *HistoryStore) Load(metric, target string, limit int) ([]HistoryPoint, e
 	return points, nil
 }
 
-// distinctSeries is a helper struct for scanning distinct metric+target pairs.
-type distinctSeries struct {
-	Metric string `db:"metric"`
-	Target string `db:"target"`
-}
-
 // historyRow is a helper for scanning full history rows in a single query.
 type historyRow struct {
 	Metric string  `db:"metric"`
@@ -91,34 +85,44 @@ type historyRow struct {
 // Result: map[metric]map[target][]HistoryPoint
 func (s *HistoryStore) LoadAll(limit int) (map[string]map[string][]HistoryPoint, error) {
 	var rows []historyRow
-	if err := s.db.Select(&rows, `SELECT metric, target, recorded_at, value
-		FROM metric_history
-		ORDER BY metric, target, id DESC`); err != nil {
-		return nil, err
+
+	if limit > 0 {
+		// Use a window function to enforce a per-series limit in SQL,
+		// avoiding loading the entire table into memory.
+		if err := s.db.Select(&rows, `
+			SELECT metric, target, recorded_at, value
+			FROM (
+				SELECT
+					metric, target, recorded_at, value, id,
+					ROW_NUMBER() OVER (
+						PARTITION BY metric, target
+						ORDER BY id DESC
+					) AS rn
+				FROM metric_history
+			)
+			WHERE rn <= ?
+			ORDER BY metric, target, id DESC
+		`, limit); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.db.Select(&rows, `SELECT metric, target, recorded_at, value
+			FROM metric_history
+			ORDER BY metric, target, id DESC`); err != nil {
+			return nil, err
+		}
 	}
 
 	result := make(map[string]map[string][]HistoryPoint)
-	counts := make(map[string]map[string]int)
 
 	for _, r := range rows {
-		if limit > 0 {
-			if counts[r.Metric] != nil && counts[r.Metric][r.Target] >= limit {
-				continue
-			}
-		}
-
 		if result[r.Metric] == nil {
 			result[r.Metric] = make(map[string][]HistoryPoint)
 		}
-		if counts[r.Metric] == nil {
-			counts[r.Metric] = make(map[string]int)
-		}
-
 		result[r.Metric][r.Target] = append(result[r.Metric][r.Target], HistoryPoint{
 			Time:  r.Time,
 			Value: r.Value,
 		})
-		counts[r.Metric][r.Target]++
 	}
 
 	// Reverse each series to oldest-first order, matching Load().
