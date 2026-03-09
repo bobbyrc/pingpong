@@ -34,6 +34,8 @@ type Broadcaster struct {
 
 	mu      sync.Mutex
 	clients map[chan []byte]struct{}
+
+	pruneCount int // broadcast ticks since last prune
 }
 
 // NewBroadcaster creates a Broadcaster that reads from the given gatherer
@@ -97,6 +99,13 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 	}
 
 	const keep = 60
+	const pruneEvery = 12 // prune every 12th tick (~1 minute at 5s interval)
+
+	b.pruneCount++
+	shouldPrune := b.pruneCount >= pruneEvery
+	if shouldPrune {
+		b.pruneCount = 0
+	}
 
 	// Ping latency per target
 	for _, mv := range snap.Metrics["pingpong_ping_latency_ms"] {
@@ -108,8 +117,10 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 			slog.Error("failed to record ping history", "target", target, "error", err)
 			continue
 		}
-		if err := b.history.Prune("ping_latency", target, keep); err != nil {
-			slog.Error("failed to prune ping history", "target", target, "error", err)
+		if shouldPrune {
+			if err := b.history.Prune("ping_latency", target, keep); err != nil {
+				slog.Error("failed to prune ping history", "target", target, "error", err)
+			}
 		}
 	}
 
@@ -119,8 +130,10 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 			slog.Error("failed to record download history", "error", err)
 			continue
 		}
-		if err := b.history.Prune("download_speed", "", keep); err != nil {
-			slog.Error("failed to prune download history", "error", err)
+		if shouldPrune {
+			if err := b.history.Prune("download_speed", "", keep); err != nil {
+				slog.Error("failed to prune download history", "error", err)
+			}
 		}
 	}
 
@@ -130,8 +143,10 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 			slog.Error("failed to record upload history", "error", err)
 			continue
 		}
-		if err := b.history.Prune("upload_speed", "", keep); err != nil {
-			slog.Error("failed to prune upload history", "error", err)
+		if shouldPrune {
+			if err := b.history.Prune("upload_speed", "", keep); err != nil {
+				slog.Error("failed to prune upload history", "error", err)
+			}
 		}
 	}
 }

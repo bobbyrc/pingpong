@@ -79,25 +79,57 @@ type distinctSeries struct {
 	Target string `db:"target"`
 }
 
+// historyRow is a helper for scanning full history rows in a single query.
+type historyRow struct {
+	Metric string  `db:"metric"`
+	Target string  `db:"target"`
+	Time   string  `db:"recorded_at"`
+	Value  float64 `db:"value"`
+}
+
 // LoadAll returns all stored history grouped by metric then target.
 // Result: map[metric]map[target][]HistoryPoint
 func (s *HistoryStore) LoadAll(limit int) (map[string]map[string][]HistoryPoint, error) {
-	var series []distinctSeries
-	if err := s.db.Select(&series,
-		"SELECT DISTINCT metric, target FROM metric_history"); err != nil {
+	var rows []historyRow
+	if err := s.db.Select(&rows, `SELECT metric, target, recorded_at, value
+		FROM metric_history
+		ORDER BY metric, target, id DESC`); err != nil {
 		return nil, err
 	}
 
 	result := make(map[string]map[string][]HistoryPoint)
-	for _, ds := range series {
-		points, err := s.Load(ds.Metric, ds.Target, limit)
-		if err != nil {
-			return nil, err
+	counts := make(map[string]map[string]int)
+
+	for _, r := range rows {
+		if limit > 0 {
+			if counts[r.Metric] != nil && counts[r.Metric][r.Target] >= limit {
+				continue
+			}
 		}
-		if result[ds.Metric] == nil {
-			result[ds.Metric] = make(map[string][]HistoryPoint)
+
+		if result[r.Metric] == nil {
+			result[r.Metric] = make(map[string][]HistoryPoint)
 		}
-		result[ds.Metric][ds.Target] = points
+		if counts[r.Metric] == nil {
+			counts[r.Metric] = make(map[string]int)
+		}
+
+		result[r.Metric][r.Target] = append(result[r.Metric][r.Target], HistoryPoint{
+			Time:  r.Time,
+			Value: r.Value,
+		})
+		counts[r.Metric][r.Target]++
 	}
+
+	// Reverse each series to oldest-first order, matching Load().
+	for _, targets := range result {
+		for target, points := range targets {
+			for i, j := 0, len(points)-1; i < j; i, j = i+1, j-1 {
+				points[i], points[j] = points[j], points[i]
+			}
+			targets[target] = points
+		}
+	}
+
 	return result, nil
 }

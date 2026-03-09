@@ -27,7 +27,9 @@ type Queue struct {
 	db *sqlx.DB
 }
 
-func NewQueue(dbPath string) (*Queue, error) {
+// OpenDB opens a SQLite database at the given path with WAL mode and a
+// busy timeout suitable for concurrent access from multiple goroutines.
+func OpenDB(dbPath string) (*sqlx.DB, error) {
 	db, err := sqlx.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
@@ -36,7 +38,16 @@ func NewQueue(dbPath string) (*Queue, error) {
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
 		return nil, fmt.Errorf("set WAL mode: %w", err)
 	}
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		return nil, fmt.Errorf("set busy_timeout: %w", err)
+	}
 
+	return db, nil
+}
+
+// NewQueue creates a Queue backed by the given database connection.
+// It creates the alerts table if it does not already exist.
+func NewQueue(db *sqlx.DB) (*Queue, error) {
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS alerts (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -59,15 +70,6 @@ func NewQueue(dbPath string) (*Queue, error) {
 	}
 
 	return &Queue{db: db}, nil
-}
-
-func (q *Queue) Close() error {
-	return q.db.Close()
-}
-
-// DB returns the underlying database connection for shared use.
-func (q *Queue) DB() *sqlx.DB {
-	return q.db
 }
 
 func (q *Queue) Enqueue(cooldownKey, alertType, title, body string) error {

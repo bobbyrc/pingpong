@@ -14,12 +14,23 @@ import (
 // expect alerts to be enqueued need a non-nil client.
 var dummyApprise = NewAppriseClient("http://localhost", "test://")
 
-func TestEngineEvaluatePacketLoss(t *testing.T) {
+func newTestEngine(t *testing.T, apprise *AppriseClient, cfg *config.Config) (*Engine, *Queue) {
+	t.Helper()
 	dir := t.TempDir()
-	q, _ := NewQueue(filepath.Join(dir, "test.db"))
-	defer q.Close()
+	db, err := OpenDB(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("OpenDB: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	q, err := NewQueue(db)
+	if err != nil {
+		t.Fatalf("NewQueue: %v", err)
+	}
+	return NewEngine(q, apprise, cfg), q
+}
 
-	engine := NewEngine(q, dummyApprise, &config.Config{
+func TestEngineEvaluatePacketLoss(t *testing.T) {
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
 		AlertPacketLossThreshold: 10,
 		AlertCooldown:           1 * time.Second,
 	})
@@ -40,11 +51,7 @@ func TestEngineEvaluatePacketLoss(t *testing.T) {
 }
 
 func TestEngineEvaluateNoAlert(t *testing.T) {
-	dir := t.TempDir()
-	q, _ := NewQueue(filepath.Join(dir, "test.db"))
-	defer q.Close()
-
-	engine := NewEngine(q, dummyApprise, &config.Config{
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
 		AlertPacketLossThreshold: 10,
 		AlertPingThreshold:       100,
 		AlertCooldown:            1 * time.Second,
@@ -63,11 +70,7 @@ func TestEngineEvaluateNoAlert(t *testing.T) {
 }
 
 func TestEngineCooldown(t *testing.T) {
-	dir := t.TempDir()
-	q, _ := NewQueue(filepath.Join(dir, "test.db"))
-	defer q.Close()
-
-	engine := NewEngine(q, dummyApprise, &config.Config{
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
 		AlertPacketLossThreshold: 10,
 		AlertCooldown:            5 * time.Minute,
 	})
@@ -90,11 +93,7 @@ func TestEngineCooldown(t *testing.T) {
 }
 
 func TestEngineEvaluateSpeed(t *testing.T) {
-	dir := t.TempDir()
-	q, _ := NewQueue(filepath.Join(dir, "test.db"))
-	defer q.Close()
-
-	engine := NewEngine(q, dummyApprise, &config.Config{
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
 		AlertSpeedThreshold: 50,
 		AlertCooldown:       1 * time.Second,
 	})
@@ -116,11 +115,7 @@ func TestEngineEvaluateSpeed(t *testing.T) {
 }
 
 func TestEngineDisabledThresholds(t *testing.T) {
-	dir := t.TempDir()
-	q, _ := NewQueue(filepath.Join(dir, "test.db"))
-	defer q.Close()
-
-	engine := NewEngine(q, dummyApprise, &config.Config{
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
 		AlertPacketLossThreshold: 0,
 		AlertPingThreshold:       0,
 		AlertSpeedThreshold:      0,
@@ -143,11 +138,7 @@ func TestEngineDisabledThresholds(t *testing.T) {
 }
 
 func TestEngineNoAppriseSkipsEnqueue(t *testing.T) {
-	dir := t.TempDir()
-	q, _ := NewQueue(filepath.Join(dir, "test.db"))
-	defer q.Close()
-
-	engine := NewEngine(q, nil, &config.Config{
+	engine, q := newTestEngine(t, nil, &config.Config{
 		AlertPacketLossThreshold: 10,
 		AlertCooldown:            1 * time.Second,
 	})

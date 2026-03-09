@@ -4,17 +4,45 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
-func TestQueueEnqueueAndPending(t *testing.T) {
+// openTestQueue creates an OpenDB + NewQueue pair for testing.
+// The database is closed automatically when the test finishes.
+func openTestQueue(t *testing.T) *Queue {
+	t.Helper()
 	dir := t.TempDir()
-	q, err := NewQueue(filepath.Join(dir, "test.db"))
+	db, err := OpenDB(filepath.Join(dir, "test.db"))
 	if err != nil {
-		t.Fatalf("failed to create queue: %v", err)
+		t.Fatalf("OpenDB: %v", err)
 	}
-	defer q.Close()
+	t.Cleanup(func() { db.Close() })
+	q, err := NewQueue(db)
+	if err != nil {
+		t.Fatalf("NewQueue: %v", err)
+	}
+	return q
+}
 
-	err = q.Enqueue("downtime", "downtime", "Connection Down", "Internet has been down for 2 minutes")
+// openTestQueueAt opens a database at a specific path for persistence tests.
+func openTestQueueAt(t *testing.T, dbPath string) (*Queue, *sqlx.DB) {
+	t.Helper()
+	db, err := OpenDB(dbPath)
+	if err != nil {
+		t.Fatalf("OpenDB: %v", err)
+	}
+	q, err := NewQueue(db)
+	if err != nil {
+		t.Fatalf("NewQueue: %v", err)
+	}
+	return q, db
+}
+
+func TestQueueEnqueueAndPending(t *testing.T) {
+	q := openTestQueue(t)
+
+	err := q.Enqueue("downtime", "downtime", "Connection Down", "Internet has been down for 2 minutes")
 	if err != nil {
 		t.Fatalf("failed to enqueue: %v", err)
 	}
@@ -38,17 +66,12 @@ func TestQueueEnqueueAndPending(t *testing.T) {
 }
 
 func TestQueueMarkSent(t *testing.T) {
-	dir := t.TempDir()
-	q, err := NewQueue(filepath.Join(dir, "test.db"))
-	if err != nil {
-		t.Fatalf("failed to create queue: %v", err)
-	}
-	defer q.Close()
+	q := openTestQueue(t)
 
 	q.Enqueue("latency:1.1.1.1", "latency", "High Latency", "Ping is 200ms")
 
 	pending, _ := q.Pending()
-	err = q.MarkSent(pending[0].ID)
+	err := q.MarkSent(pending[0].ID)
 	if err != nil {
 		t.Fatalf("failed to mark sent: %v", err)
 	}
@@ -60,17 +83,12 @@ func TestQueueMarkSent(t *testing.T) {
 }
 
 func TestQueueIncrementRetry(t *testing.T) {
-	dir := t.TempDir()
-	q, err := NewQueue(filepath.Join(dir, "test.db"))
-	if err != nil {
-		t.Fatalf("failed to create queue: %v", err)
-	}
-	defer q.Close()
+	q := openTestQueue(t)
 
 	q.Enqueue("packet_loss:1.1.1.1", "packet_loss", "Packet Loss", "50% packet loss")
 	pending, _ := q.Pending()
 
-	err = q.IncrementRetry(pending[0].ID)
+	err := q.IncrementRetry(pending[0].ID)
 	if err != nil {
 		t.Fatalf("failed to increment retry: %v", err)
 	}
@@ -82,17 +100,12 @@ func TestQueueIncrementRetry(t *testing.T) {
 }
 
 func TestQueueMarkFailedPermanent(t *testing.T) {
-	dir := t.TempDir()
-	q, err := NewQueue(filepath.Join(dir, "test.db"))
-	if err != nil {
-		t.Fatalf("failed to create queue: %v", err)
-	}
-	defer q.Close()
+	q := openTestQueue(t)
 
 	q.Enqueue("speed", "speed", "Slow Speed", "Download is 5 Mbps")
 	pending, _ := q.Pending()
 
-	err = q.MarkFailedPermanent(pending[0].ID)
+	err := q.MarkFailedPermanent(pending[0].ID)
 	if err != nil {
 		t.Fatalf("failed to mark failed permanent: %v", err)
 	}
@@ -104,12 +117,7 @@ func TestQueueMarkFailedPermanent(t *testing.T) {
 }
 
 func TestQueueLastSentTime(t *testing.T) {
-	dir := t.TempDir()
-	q, err := NewQueue(filepath.Join(dir, "test.db"))
-	if err != nil {
-		t.Fatalf("failed to create queue: %v", err)
-	}
-	defer q.Close()
+	q := openTestQueue(t)
 
 	_, found, err := q.LastSentTime("downtime")
 	if err != nil {
@@ -136,12 +144,7 @@ func TestQueueLastSentTime(t *testing.T) {
 }
 
 func TestRecentAlerts(t *testing.T) {
-	dir := t.TempDir()
-	q, err := NewQueue(filepath.Join(dir, "test.db"))
-	if err != nil {
-		t.Fatalf("failed to create queue: %v", err)
-	}
-	defer q.Close()
+	q := openTestQueue(t)
 
 	// Enqueue 3 alerts
 	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
@@ -181,12 +184,7 @@ func TestRecentAlerts(t *testing.T) {
 }
 
 func TestRecentAlertsEmpty(t *testing.T) {
-	dir := t.TempDir()
-	q, err := NewQueue(filepath.Join(dir, "test.db"))
-	if err != nil {
-		t.Fatalf("failed to create queue: %v", err)
-	}
-	defer q.Close()
+	q := openTestQueue(t)
 
 	alerts, total, err := q.RecentAlerts(10, 0)
 	if err != nil {
@@ -200,26 +198,30 @@ func TestRecentAlertsEmpty(t *testing.T) {
 	}
 }
 
-func TestQueueDB(t *testing.T) {
+func TestOpenDBSetsPragmas(t *testing.T) {
 	dir := t.TempDir()
-	q, err := NewQueue(filepath.Join(dir, "test.db"))
+	db, err := OpenDB(filepath.Join(dir, "test.db"))
 	if err != nil {
-		t.Fatalf("failed to create queue: %v", err)
+		t.Fatalf("OpenDB: %v", err)
 	}
-	defer q.Close()
+	defer db.Close()
 
-	db := q.DB()
-	if db == nil {
-		t.Fatal("expected non-nil DB")
+	// Verify WAL mode
+	var journalMode string
+	if err := db.Get(&journalMode, "PRAGMA journal_mode"); err != nil {
+		t.Fatalf("get journal_mode: %v", err)
+	}
+	if journalMode != "wal" {
+		t.Errorf("expected journal_mode=wal, got %q", journalMode)
 	}
 
-	// Verify the returned DB is functional
-	var result int
-	if err := db.Get(&result, "SELECT 1"); err != nil {
-		t.Fatalf("DB query failed: %v", err)
+	// Verify busy_timeout
+	var busyTimeout int
+	if err := db.Get(&busyTimeout, "PRAGMA busy_timeout"); err != nil {
+		t.Fatalf("get busy_timeout: %v", err)
 	}
-	if result != 1 {
-		t.Fatalf("expected 1, got %d", result)
+	if busyTimeout != 5000 {
+		t.Errorf("expected busy_timeout=5000, got %d", busyTimeout)
 	}
 }
 
@@ -227,12 +229,12 @@ func TestQueuePersistence(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
 
-	q1, _ := NewQueue(dbPath)
+	q1, db1 := openTestQueueAt(t, dbPath)
 	q1.Enqueue("downtime", "downtime", "Down", "Internet down")
-	q1.Close()
+	db1.Close()
 
-	q2, _ := NewQueue(dbPath)
-	defer q2.Close()
+	q2, db2 := openTestQueueAt(t, dbPath)
+	defer db2.Close()
 	pending, _ := q2.Pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 pending alert after reopen, got %d", len(pending))

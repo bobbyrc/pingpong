@@ -297,7 +297,9 @@ func (h *Handler) historyAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if h.history == nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{})
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{}); err != nil {
+			slog.Error("failed to encode empty history response", "error", err)
+		}
 		return
 	}
 
@@ -308,5 +310,7 @@ func (h *Handler) historyAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("failed to encode history response", "error", err)
+	}
 }
