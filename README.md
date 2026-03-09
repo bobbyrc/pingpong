@@ -1,6 +1,6 @@
 # PingPong
 
-Self-hosted internet health monitor. PingPong continuously measures the vitals of your internet connection — ping latency, jitter, packet loss, download/upload speed, DNS resolution time, traceroute hops, and connection uptime — exposes them as Prometheus metrics, and sends alerts via Apprise when things go wrong. A pre-built Grafana dashboard shows history at a glance.
+Self-hosted internet health monitor. PingPong continuously measures the vitals of your internet connection — ping latency, jitter, packet loss, download/upload speed, DNS resolution time, traceroute hops, and connection uptime — exposes them as Prometheus metrics, and sends alerts via Apprise when things go wrong. A built-in real-time web dashboard shows live metrics with sparkline history, and a pre-built Grafana dashboard shows longer-term history at a glance.
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ cp .env.example .env  # edit PINGPONG_APPRISE_URLS with your notification URLs
 docker compose --profile monitoring up -d
 ```
 
-Then open Grafana at **http://localhost:3000** (admin / admin).
+Then open the **PingPong dashboard** at **http://localhost:4040** and Grafana at **http://localhost:3000** (admin / admin).
 
 **Minimal** (PingPong + Apprise only — bring your own Prometheus/Grafana):
 
@@ -24,7 +24,7 @@ Then open Grafana at **http://localhost:3000** (admin / admin).
 docker compose up -d
 ```
 
-This starts only PingPong and Apprise — no Prometheus or Grafana containers. PingPong exposes metrics at `http://localhost:4040/metrics` for your existing monitoring stack to scrape.
+This starts only PingPong and Apprise — no Prometheus or Grafana containers. PingPong exposes metrics at `http://localhost:4040/metrics` for your existing monitoring stack to scrape, and the built-in dashboard is available at `http://localhost:4040`.
 
 See [Using Your Own Monitoring Stack](#using-your-own-monitoring-stack) below.
 
@@ -124,6 +124,11 @@ All intervals are configurable. See the Configuration section below.
 │  │   :3000   │             │  • Speed test (Ookla)  │ │
 │  └───────────┘             │  • DNS resolution      │ │
 │                            │  • Traceroute          │ │
+│       Browser ◄───────────►│                       │ │
+│     (dashboard,            │  Web UI:               │ │
+│      alerts,               │  • Live dashboard (SSE)│ │
+│      config)               │  • Alert history       │ │
+│                            │  • Config editor       │ │
 │                            │                       │ │
 │                            │  Alert engine:         │ │
 │                            │  • Threshold eval      │ │
@@ -212,13 +217,16 @@ Set any threshold to `0` to disable that alert entirely.
 
 ## Persistent Data
 
-Alerts are queued in a SQLite database before being sent to Apprise. The database lives in a Docker volume, so unsent alerts survive container restarts and brief network outages. When PingPong comes back up, it replays any pending alerts automatically.
+Alerts are queued in a SQLite database before being sent to Apprise. Sparkline metric history (ping latency, download/upload speed) is also stored in the same database for the web dashboard. The database lives in a Docker volume, so unsent alerts and metric history survive container restarts and brief network outages. When PingPong comes back up, it replays any pending alerts automatically and the dashboard sparklines show recent history.
 
 ## Accessing Services
 
 | Service | URL | Credentials | Profile |
 |---------|-----|-------------|---------|
-| Grafana | http://localhost:3000 | admin / admin | monitoring |
-| Prometheus | http://localhost:9090 | — | monitoring |
+| PingPong dashboard | http://localhost:4040 | — | always |
+| PingPong alerts | http://localhost:4040/alerts | — | always |
+| PingPong config | http://localhost:4040/config | — | always |
 | PingPong metrics | http://localhost:4040/metrics | — | always |
 | PingPong health | http://localhost:4040/health | — | always |
+| Grafana | http://localhost:3000 | admin / admin | monitoring |
+| Prometheus | http://localhost:9090 | — | monitoring |
