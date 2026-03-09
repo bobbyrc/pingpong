@@ -90,6 +90,10 @@
         if (colorClass) el.classList.add(colorClass);
     }
 
+    function removeLoading(el) {
+        if (el) el.classList.remove('loading');
+    }
+
     // ── Sparkline Renderer ──────────────────────────────────────
 
     function drawSparkline(canvas, values, color) {
@@ -306,6 +310,9 @@
             if (!card) {
                 card = createPingCard(cardId, target);
                 container.appendChild(card);
+                // Remove the loading placeholder on first card creation
+                var placeholder = document.getElementById('ping-loading');
+                if (placeholder) placeholder.remove();
             }
 
             // Update latency
@@ -415,6 +422,8 @@
         var dlEl = document.getElementById('speedtest-download');
         if (dlEl && dlEntry) {
             setText(dlEl, formatSpeed(dlEntry.value));
+            removeLoading(dlEl);
+            removeLoading(document.getElementById('speedtest-download-spark'));
             pushHistory(downloadHistory, dlEntry.value);
             var dlSpark = document.getElementById('speedtest-download-spark');
             if (dlSpark) drawSparkline(dlSpark, downloadHistory, COLOR_ACCENT);
@@ -424,6 +433,8 @@
         var ulEl = document.getElementById('speedtest-upload');
         if (ulEl && ulEntry) {
             setText(ulEl, formatSpeed(ulEntry.value));
+            removeLoading(ulEl);
+            removeLoading(document.getElementById('speedtest-upload-spark'));
             pushHistory(uploadHistory, ulEntry.value);
             var ulSpark = document.getElementById('speedtest-upload-spark');
             if (ulSpark) drawSparkline(ulSpark, uploadHistory, COLOR_ACCENT);
@@ -433,6 +444,7 @@
         var latEl = document.getElementById('speedtest-latency');
         if (latEl && latEntry) {
             setText(latEl, formatLatency(latEntry.value));
+            removeLoading(latEl);
         }
 
         // Jitter -- SSE may not provide a distinct speedtest jitter metric
@@ -440,6 +452,7 @@
         if (jitEl) {
             var jitEntry = first(metrics, 'pingpong_speedtest_jitter_ms');
             setText(jitEl, jitEntry ? formatLatency(jitEntry.value) : '--');
+            removeLoading(jitEl);
         }
 
         // Server info
