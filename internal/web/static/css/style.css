@@ -1,0 +1,924 @@
+/* ============================================================
+   PingPong — Dark Theme Stylesheet
+   A premium network monitoring dashboard
+   ============================================================ */
+
+/* --- CSS Custom Properties --------------------------------- */
+:root {
+    --bg-primary: #0f1117;
+    --bg-card: #1a1d27;
+    --bg-card-hover: #1e2230;
+    --bg-header: #13151d;
+    --border: #2a2d3a;
+    --border-focus: #3a3d4a;
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-muted: #6b7280;
+    --accent: #6c63ff;
+    --accent-hover: #7c74ff;
+    --accent-dim: rgba(108, 99, 255, 0.12);
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --green-dim: rgba(34, 197, 94, 0.15);
+    --yellow-dim: rgba(234, 179, 8, 0.10);
+    --red-dim: rgba(239, 68, 68, 0.15);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 6px;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --transition: 150ms ease;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono",
+        "Cascadia Code", Menlo, Consolas, monospace;
+    --header-h: 56px;
+}
+
+/* --- Reset & Base ------------------------------------------ */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+    padding-top: var(--header-h);
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color var(--transition);
+}
+
+a:hover {
+    color: var(--accent-hover);
+}
+
+img, svg {
+    display: block;
+    max-width: 100%;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+button, input, select, textarea {
+    font: inherit;
+    color: inherit;
+}
+
+/* --- Scrollbar (webkit) ------------------------------------ */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-focus);
+}
+
+/* --- Header ------------------------------------------------ */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: var(--header-h);
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+}
+
+.header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+}
+
+.logo:hover {
+    color: var(--text-primary);
+}
+
+.logo-icon {
+    color: var(--accent);
+    font-size: 0.75rem;
+}
+
+/* --- Navigation -------------------------------------------- */
+.nav {
+    display: flex;
+    gap: 4px;
+}
+
+.nav-link {
+    position: relative;
+    padding: 8px 16px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--radius-xs);
+    transition: color var(--transition), background var(--transition);
+}
+
+.nav-link:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-link.active {
+    color: var(--accent);
+}
+
+.nav-link.active::after {
+    content: "";
+    position: absolute;
+    bottom: -10px;
+    left: 16px;
+    right: 16px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+}
+
+/* --- Header Status ----------------------------------------- */
+.header-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+    transition: background var(--transition);
+}
+
+.status-dot.up {
+    background: var(--green);
+    animation: pulse-green 2s ease-in-out infinite;
+}
+
+.status-dot.down {
+    background: var(--red);
+}
+
+@keyframes pulse-green {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+    }
+}
+
+.status-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+/* --- Main -------------------------------------------------- */
+.main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+/* --- Section ----------------------------------------------- */
+.section {
+    margin-bottom: 32px;
+}
+
+.section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+}
+
+.section-subtitle {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+/* --- Page Header ------------------------------------------- */
+.page-header {
+    margin-bottom: 24px;
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+/* --- Connection Banner ------------------------------------- */
+.connection-banner {
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    margin-bottom: 28px;
+    background: linear-gradient(135deg, var(--green-dim), transparent 70%);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    transition: background var(--transition), border-color var(--transition);
+}
+
+.connection-banner.down {
+    background: linear-gradient(135deg, var(--red-dim), transparent 70%);
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+.connection-banner-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.connection-banner-icon {
+    font-size: 0.625rem;
+    color: var(--green);
+    transition: color var(--transition);
+}
+
+.connection-banner.down .connection-banner-icon {
+    color: var(--red);
+}
+
+.connection-banner-text {
+    font-weight: 600;
+    font-size: 0.9375rem;
+}
+
+.connection-banner-detail {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    margin-left: auto;
+}
+
+/* --- Cards ------------------------------------------------- */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: background var(--transition), box-shadow var(--transition);
+}
+
+.card:hover {
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow);
+}
+
+.card-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 16px 20px 0;
+    flex-wrap: wrap;
+}
+
+.card-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.card-body {
+    padding: 16px 20px 20px;
+}
+
+.card-full {
+    grid-column: 1 / -1;
+}
+
+/* --- Card Grid --------------------------------------------- */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+/* --- Two Column Layout ------------------------------------- */
+.two-col {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+/* --- Ping Card (inner structure) --------------------------- */
+.ping-target-name {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    margin-bottom: 12px;
+}
+
+.ping-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+/* --- Metric Values ----------------------------------------- */
+.metric {
+    text-align: center;
+}
+
+.metric-value {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    color: var(--text-primary);
+    transition: color 0.3s ease, transform 0.15s ease;
+    font-variant-numeric: tabular-nums;
+}
+
+.metric-value.updated {
+    transform: scale(1.04);
+}
+
+.metric-value-sm {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s ease;
+}
+
+.metric-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+}
+
+.metric-unit {
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.metric-row {
+    display: flex;
+    justify-content: space-around;
+    gap: 16px;
+}
+
+.metric-row-secondary {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.metric-small {
+    flex: 1;
+}
+
+/* --- Sparkline --------------------------------------------- */
+.sparkline {
+    width: 100%;
+    height: 60px;
+    margin-top: 8px;
+    opacity: 0.9;
+}
+
+/* --- Speedtest Server -------------------------------------- */
+.speedtest-server {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.speedtest-server-label {
+    color: var(--text-muted);
+    margin-right: 4px;
+}
+
+/* --- Tables ------------------------------------------------ */
+.table {
+    width: 100%;
+    font-size: 0.875rem;
+}
+
+.table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    z-index: 1;
+}
+
+.table td {
+    padding: 10px 14px;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(42, 45, 58, 0.5);
+}
+
+.table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.dns-table-wrapper,
+.traceroute-table-wrapper {
+    overflow-x: auto;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.cell-nowrap {
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+}
+
+.cell-message {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cell-center {
+    text-align: center;
+}
+
+/* Traceroute columns */
+.col-hop {
+    width: 60px;
+    text-align: center;
+}
+
+.col-address {
+    min-width: 180px;
+}
+
+.col-latency {
+    width: 100px;
+    text-align: right;
+}
+
+.col-bar {
+    width: 30%;
+    min-width: 120px;
+}
+
+.hop-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.4s ease;
+}
+
+/* --- Alert Type Badge -------------------------------------- */
+.alert-type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: var(--radius-xs);
+    background: var(--accent-dim);
+    color: var(--accent);
+    text-transform: lowercase;
+    font-family: var(--font-mono);
+}
+
+/* --- Status Badges ----------------------------------------- */
+.status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 20px;
+    text-transform: capitalize;
+    letter-spacing: 0.02em;
+}
+
+.status-sent {
+    background: var(--green-dim);
+    color: var(--green);
+}
+
+.status-pending {
+    background: var(--yellow-dim);
+    color: var(--yellow);
+}
+
+.status-failed {
+    background: var(--red-dim);
+    color: var(--red);
+}
+
+/* --- Empty State ------------------------------------------- */
+.empty-state {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-secondary);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-state-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.empty-state-text {
+    font-size: 0.875rem;
+    max-width: 360px;
+    margin: 0 auto;
+}
+
+/* --- Pagination -------------------------------------------- */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.pagination-info {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.btn-pagination {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--transition), border-color var(--transition);
+}
+
+.btn-pagination:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-focus);
+    color: var(--text-primary);
+}
+
+.btn-disabled {
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: default;
+}
+
+/* --- Forms ------------------------------------------------- */
+.config-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.config-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--transition);
+}
+
+.config-card-header:hover {
+    background: var(--bg-card-hover);
+}
+
+.config-card-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.chevron {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    transition: transform 0.2s ease;
+}
+
+.config-card.collapsed .chevron {
+    transform: rotate(-90deg);
+}
+
+.config-card-body {
+    padding: 4px 20px 20px;
+    border-top: 1px solid var(--border);
+}
+
+.config-card.collapsed .config-card-body {
+    display: none;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    font-family: var(--font-mono);
+    letter-spacing: -0.01em;
+}
+
+.form-input {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-input::placeholder {
+    color: var(--text-muted);
+}
+
+.form-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.form-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.form-actions {
+    margin-top: 24px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* --- Buttons ----------------------------------------------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--transition), transform 0.1s ease;
+    outline: none;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+    color: #fff;
+}
+
+.btn-primary:focus-visible {
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* --- Alert Banners ----------------------------------------- */
+.alert {
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    transition: opacity var(--transition);
+}
+
+.alert-hidden {
+    display: none;
+}
+
+.alert-success {
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.alert-error {
+    background: var(--red-dim);
+    color: var(--red);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.alert-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* --- Responsive -------------------------------------------- */
+@media (max-width: 768px) {
+    .header-inner {
+        padding: 0 16px;
+    }
+
+    .nav {
+        gap: 0;
+    }
+
+    .nav-link {
+        padding: 8px 10px;
+        font-size: 0.8125rem;
+    }
+
+    .status-label {
+        display: none;
+    }
+
+    .main {
+        padding: 16px;
+    }
+
+    .two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metric-value {
+        font-size: 1.5rem;
+    }
+
+    .metric-value-sm {
+        font-size: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.25rem;
+    }
+
+    .cell-message {
+        max-width: 180px;
+    }
+
+    .pagination {
+        gap: 8px;
+    }
+
+    .btn-pagination {
+        padding: 6px 12px;
+        font-size: 0.8125rem;
+    }
+
+    .section-header {
+        flex-direction: column;
+        gap: 2px;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo {
+        font-size: 1rem;
+    }
+
+    .nav-link {
+        padding: 8px 8px;
+        font-size: 0.75rem;
+    }
+
+    .header-status {
+        gap: 4px;
+    }
+
+    .metric-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+
+/* --- Utility ----------------------------------------------- */
+.text-green { color: var(--green); }
+.text-yellow { color: var(--yellow); }
+.text-red { color: var(--red); }
+.text-muted { color: var(--text-muted); }
+.font-mono { font-family: var(--font-mono); }

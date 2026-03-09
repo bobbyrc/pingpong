@@ -16,6 +16,7 @@ import (
 	"github.com/bobbyrc/pingpong/internal/collector"
 	"github.com/bobbyrc/pingpong/internal/config"
 	"github.com/bobbyrc/pingpong/internal/metrics"
+	"github.com/bobbyrc/pingpong/internal/web"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -68,6 +69,16 @@ func main() {
 	engine.SeedCooldowns()
 
 	mux := http.NewServeMux()
+
+	// Web UI
+	webHandler, err := web.NewHandler(reg, queue, cfg.EnvFile)
+	if err != nil {
+		slog.Error("failed to create web handler", "error", err)
+		os.Exit(1)
+	}
+	webHandler.RegisterRoutes(mux)
+
+	// Core routes (take precedence due to longer path match)
 	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -81,6 +92,8 @@ func main() {
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	webHandler.Start(ctx)
 
 	var wg sync.WaitGroup
 

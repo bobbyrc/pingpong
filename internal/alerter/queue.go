@@ -123,6 +123,28 @@ func (q *Queue) LastSentTime(cooldownKey string) (time.Time, bool, error) {
 	return *sentAt, true, nil
 }
 
+// RecentAlerts returns a paginated list of all alerts (any status), most recent first.
+func (q *Queue) RecentAlerts(limit, offset int) ([]Alert, int, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	var total int
+	if err := q.db.Get(&total, "SELECT COUNT(*) FROM alerts"); err != nil {
+		return nil, 0, err
+	}
+
+	var alerts []Alert
+	err := q.db.Select(&alerts,
+		"SELECT * FROM alerts ORDER BY id DESC LIMIT ? OFFSET ?",
+		limit, offset,
+	)
+	return alerts, total, err
+}
+
 type cooldownEntry struct {
 	CooldownKey string     `db:"cooldown_key"`
 	LastSent    *time.Time `db:"last_sent"`

@@ -135,6 +135,71 @@ func TestQueueLastSentTime(t *testing.T) {
 	}
 }
 
+func TestRecentAlerts(t *testing.T) {
+	dir := t.TempDir()
+	q, err := NewQueue(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("failed to create queue: %v", err)
+	}
+	defer q.Close()
+
+	// Enqueue 3 alerts
+	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
+	q.Enqueue("key2", "speed", "Alert 2", "Body 2")
+	q.Enqueue("key3", "downtime", "Alert 3", "Body 3")
+
+	// Mark one as sent
+	q.MarkSent(1)
+
+	// Page 1: limit 2, offset 0
+	alerts, total, err := q.RecentAlerts(2, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 3 {
+		t.Fatalf("expected total 3, got %d", total)
+	}
+	if len(alerts) != 2 {
+		t.Fatalf("expected 2 alerts, got %d", len(alerts))
+	}
+	// Most recent first
+	if alerts[0].Title != "Alert 3" {
+		t.Errorf("expected Alert 3 first, got %s", alerts[0].Title)
+	}
+
+	// Page 2: limit 2, offset 2
+	alerts, total, err = q.RecentAlerts(2, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 3 {
+		t.Fatalf("expected total 3, got %d", total)
+	}
+	if len(alerts) != 1 {
+		t.Fatalf("expected 1 alert, got %d", len(alerts))
+	}
+}
+
+func TestRecentAlertsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	q, err := NewQueue(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("failed to create queue: %v", err)
+	}
+	defer q.Close()
+
+	alerts, total, err := q.RecentAlerts(10, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if total != 0 {
+		t.Fatalf("expected total 0, got %d", total)
+	}
+	if len(alerts) != 0 {
+		t.Fatalf("expected 0 alerts, got %d", len(alerts))
+	}
+}
+
 func TestQueuePersistence(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
