@@ -31,6 +31,9 @@ func TestParseSpeedtestOutput(t *testing.T) {
 	if result.LatencyMs != 12.345 {
 		t.Fatalf("expected latency 12.345, got %f", result.LatencyMs)
 	}
+	if result.JitterMs != 1.234 {
+		t.Fatalf("expected jitter 1.234, got %f", result.JitterMs)
+	}
 	if result.ServerName != "Test Server" {
 		t.Fatalf("expected server name 'Test Server', got %q", result.ServerName)
 	}
@@ -59,5 +62,8 @@ func TestParseSpeedtestOutputMissingMetadata(t *testing.T) {
 	}
 	if result.ISP != "" {
 		t.Fatalf("expected empty ISP, got %q", result.ISP)
+	}
+	if result.JitterMs != 0 {
+		t.Fatalf("expected jitter 0, got %f", result.JitterMs)
 	}
 }

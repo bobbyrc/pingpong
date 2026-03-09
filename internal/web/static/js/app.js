@@ -90,6 +90,10 @@
         if (colorClass) el.classList.add(colorClass);
     }
 
+    function removeLoading(el) {
+        if (el) el.classList.remove('loading');
+    }
+
     // ── Sparkline Renderer ──────────────────────────────────────
 
     function drawSparkline(canvas, values, color) {
@@ -108,7 +112,18 @@
         ctx.clearRect(0, 0, w, h);
 
         var len = values.length;
-        if (len < 2) return;
+        if (len < 2) {
+            if (len === 1) {
+                // Draw a single dot so the user sees data immediately
+                var dotX = w / 2;
+                var dotY = h / 2;
+                ctx.beginPath();
+                ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+            return;
+        }
 
         var min = Infinity;
         var max = -Infinity;
@@ -161,7 +176,7 @@
 
     // ── Sparkline History (ring buffers) ────────────────────────
 
-    var SPARK_MAX = 30;
+    var SPARK_MAX = 60;
     var pingHistory = {};       // keyed by target
     var downloadHistory = [];
     var uploadHistory = [];
@@ -175,6 +190,43 @@
     // ── CSS color values for sparklines ─────────────────────────
     var COLOR_GREEN = '#22c55e';
     var COLOR_ACCENT = '#6c63ff';
+
+    // ── History Seeding ─────────────────────────────────────────
+
+    function loadHistory() {
+        return fetch('/api/history')
+            .then(function (res) {
+                if (!res.ok) throw new Error('history fetch failed');
+                return res.json();
+            })
+            .then(function (data) {
+                // Seed ping latency history
+                var pingData = data.ping_latency;
+                if (pingData) {
+                    for (var target in pingData) {
+                        if (!pingData.hasOwnProperty(target)) continue;
+                        pingHistory[target] = pingData[target].map(function (p) { return p.v; });
+                    }
+                }
+
+                // Seed download history
+                var dlData = data.download_speed;
+                if (dlData && dlData['']) {
+                    downloadHistory.length = 0;
+                    dlData[''].forEach(function (p) { downloadHistory.push(p.v); });
+                }
+
+                // Seed upload history
+                var ulData = data.upload_speed;
+                if (ulData && ulData['']) {
+                    uploadHistory.length = 0;
+                    ulData[''].forEach(function (p) { uploadHistory.push(p.v); });
+                }
+            })
+            .catch(function () {
+                // Silent fallback — sparklines start empty as before
+            });
+    }
 
     // ── Dashboard Update ────────────────────────────────────────
 
@@ -295,6 +347,9 @@
             if (!card) {
                 card = createPingCard(cardId, target);
                 container.appendChild(card);
+                // Remove the loading placeholder on first card creation
+                var placeholder = document.getElementById('ping-loading');
+                if (placeholder) placeholder.remove();
             }
 
             // Update latency
@@ -404,6 +459,8 @@
         var dlEl = document.getElementById('speedtest-download');
         if (dlEl && dlEntry) {
             setText(dlEl, formatSpeed(dlEntry.value));
+            removeLoading(dlEl);
+            removeLoading(document.getElementById('speedtest-download-spark'));
             pushHistory(downloadHistory, dlEntry.value);
             var dlSpark = document.getElementById('speedtest-download-spark');
             if (dlSpark) drawSparkline(dlSpark, downloadHistory, COLOR_ACCENT);
@@ -413,6 +470,8 @@
         var ulEl = document.getElementById('speedtest-upload');
         if (ulEl && ulEntry) {
             setText(ulEl, formatSpeed(ulEntry.value));
+            removeLoading(ulEl);
+            removeLoading(document.getElementById('speedtest-upload-spark'));
             pushHistory(uploadHistory, ulEntry.value);
             var ulSpark = document.getElementById('speedtest-upload-spark');
             if (ulSpark) drawSparkline(ulSpark, uploadHistory, COLOR_ACCENT);
@@ -422,6 +481,7 @@
         var latEl = document.getElementById('speedtest-latency');
         if (latEl && latEntry) {
             setText(latEl, formatLatency(latEntry.value));
+            removeLoading(latEl);
         }
 
         // Jitter -- SSE may not provide a distinct speedtest jitter metric
@@ -429,6 +489,7 @@
         if (jitEl) {
             var jitEntry = first(metrics, 'pingpong_speedtest_jitter_ms');
             setText(jitEl, jitEntry ? formatLatency(jitEntry.value) : '--');
+            if (jitEntry) removeLoading(jitEl);
         }
 
         // Server info
@@ -552,7 +613,9 @@
         }
     }
 
-    // ── SSE Connection (dashboard only) ─────────────────────────
+    // ── SSE Connection (all pages) ───────────────────────────
+
+    var isDashboard = !!document.getElementById('ping-cards');
 
     function connectSSE() {
         var source = new EventSource('/api/events');
@@ -560,7 +623,11 @@
         source.onmessage = function (e) {
             try {
                 var data = JSON.parse(e.data);
-                updateDashboard(data);
+                if (isDashboard) {
+                    updateDashboard(data);
+                } else if (data.metrics) {
+                    updateConnectionStatus(data.metrics);
+                }
             } catch (err) {
                 // Silently ignore malformed JSON
             }
@@ -590,7 +657,9 @@
         };
     }
 
-    if (document.getElementById('ping-cards')) {
+    if (isDashboard) {
+        loadHistory().then(connectSSE).catch(connectSSE);
+    } else {
         connectSSE();
     }
 
@@ -704,6 +773,17 @@
         loadConfig();
         setupConfigForm();
         setupCollapsible();
+    }
+
+    // ── Alerts Per-Page Dropdown ─────────────────────────────
+
+    var perPageSelect = document.getElementById('per-page-select');
+    if (perPageSelect) {
+        perPageSelect.addEventListener('change', function () {
+            var val = this.value;
+            document.cookie = 'pingpong_alerts_per_page=' + val + ';path=/;max-age=31536000;SameSite=Lax';
+            window.location.href = '/alerts?page=1&perPage=' + val;
+        });
     }
 
 })();

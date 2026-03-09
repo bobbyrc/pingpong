@@ -14,7 +14,7 @@ import (
 
 func TestDashboardReturnsHTML(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestDashboardReturnsHTML(t *testing.T) {
 
 func TestDashboardNotFoundForOtherPaths(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestConfigAPIRoundTrip(t *testing.T) {
 	}
 
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, envPath)
+	h, err := NewHandler(reg, nil, nil, envPath)
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestConfigAPIRoundTrip(t *testing.T) {
 
 func TestConfigAPINoEnvPath(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestConfigAPINoEnvPath(t *testing.T) {
 
 func TestStaticFileServing(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestStaticFileServing(t *testing.T) {
 
 func TestAlertsPageNilQueue(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -191,9 +191,75 @@ func TestAlertsPageNilQueue(t *testing.T) {
 	}
 }
 
+func TestResolvePerPage(t *testing.T) {
+	tests := []struct {
+		name     string
+		query    string
+		cookie   string
+		expected int
+	}{
+		{"default", "", "", 20},
+		{"query param", "?perPage=50", "", 50},
+		{"cookie", "", "50", 50},
+		{"query overrides cookie", "?perPage=10", "50", 10},
+		{"invalid query falls to cookie", "?perPage=abc", "30", 30},
+		{"zero query falls to cookie", "?perPage=0", "30", 30},
+		{"negative query falls to default", "?perPage=-5", "", 20},
+		{"over max falls to cookie", "?perPage=101", "30", 30},
+		{"over max falls to default", "?perPage=200", "", 20},
+		{"invalid cookie falls to default", "", "abc", 20},
+		{"boundary lower", "?perPage=1", "", 1},
+		{"boundary upper", "?perPage=100", "", 100},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/alerts"+tt.query, nil)
+			if tt.cookie != "" {
+				req.AddCookie(&http.Cookie{Name: "pingpong_alerts_per_page", Value: tt.cookie})
+			}
+			got := resolvePerPage(req)
+			if got != tt.expected {
+				t.Errorf("resolvePerPage() = %d, want %d", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestConfigAPIMissingEnvFile(t *testing.T) {
+	// Point envPath at a valid directory but non-existent file.
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, ".env")
+
+	reg := prometheus.NewRegistry()
+	h, err := NewHandler(reg, nil, nil, envPath)
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for missing env file, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+
+	var env map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(env) != 0 {
+		t.Errorf("expected empty JSON object, got %v", env)
+	}
+}
+
 func TestAlertsAPINilQueue(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -215,5 +281,87 @@ func TestAlertsAPINilQueue(t *testing.T) {
 	}
 	if resp["total"].(float64) != 0 {
 		t.Errorf("expected total=0, got %v", resp["total"])
+	}
+}
+
+func TestHistoryAPINilStore(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	h, err := NewHandler(reg, nil, nil, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/history", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp) != 0 {
+		t.Errorf("expected empty object, got %v", resp)
+	}
+}
+
+func TestHistoryAPIWithData(t *testing.T) {
+	db := openTestDB(t)
+	store, err := NewHistoryStore(db)
+	if err != nil {
+		t.Fatalf("NewHistoryStore: %v", err)
+	}
+
+	store.Record("ping_latency", "1.1.1.1", 12.5)
+	store.Record("ping_latency", "1.1.1.1", 13.0)
+	store.Record("download_speed", "", 95.2)
+
+	reg := prometheus.NewRegistry()
+	h, err := NewHandler(reg, nil, store, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/history", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	// Parse the nested structure
+	var resp map[string]map[string][]HistoryPoint
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	pingData, ok := resp["ping_latency"]
+	if !ok {
+		t.Fatal("missing ping_latency in response")
+	}
+	points := pingData["1.1.1.1"]
+	if len(points) != 2 {
+		t.Fatalf("expected 2 ping points, got %d", len(points))
+	}
+	if points[0].Value != 12.5 {
+		t.Errorf("first ping value = %v, want 12.5", points[0].Value)
+	}
+
+	dlData, ok := resp["download_speed"]
+	if !ok {
+		t.Fatal("missing download_speed in response")
+	}
+	if len(dlData[""]) != 1 {
+		t.Fatalf("expected 1 download point, got %d", len(dlData[""]))
 	}
 }

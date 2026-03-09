@@ -24,7 +24,7 @@ func TestBroadcaster_SSE(t *testing.T) {
 	gauge.Set(42.0)
 
 	// 2. Create a broadcaster with a short interval.
-	b := NewBroadcaster(reg, 50*time.Millisecond)
+	b := NewBroadcaster(reg, 50*time.Millisecond, nil)
 
 	// 3. Start the broadcaster in the background.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -107,7 +107,7 @@ func TestBroadcaster_GatherSnapshot(t *testing.T) {
 	reg.MustRegister(counter)
 	counter.Add(7)
 
-	b := NewBroadcaster(reg, time.Second)
+	b := NewBroadcaster(reg, time.Second, nil)
 	snap, err := b.gatherSnapshot()
 	if err != nil {
 		t.Fatalf("gatherSnapshot: %v", err)
@@ -140,7 +140,7 @@ func TestBroadcaster_GatherSnapshot(t *testing.T) {
 
 func TestBroadcaster_SubscribeUnsubscribe(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	b := NewBroadcaster(reg, time.Second)
+	b := NewBroadcaster(reg, time.Second, nil)
 
 	ch := b.subscribe()
 	b.mu.Lock()

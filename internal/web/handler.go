@@ -4,11 +4,13 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"html/template"
 	"io/fs"
 	"log/slog"
 	"math"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,6 +33,7 @@ type Handler struct {
 	pages       map[string]*template.Template // keyed by page filename
 	broadcaster *Broadcaster
 	queue       *alerter.Queue // may be nil
+	history     *HistoryStore  // may be nil
 	envPath     string         // may be empty
 }
 
@@ -41,11 +44,12 @@ type pageData struct {
 	Alerts     []alerter.Alert
 	Page       int
 	TotalPages int
+	PerPage    int
 }
 
 // NewHandler creates a Handler that renders templates, broadcasts SSE
 // metrics, and serves the config and alerts APIs.
-func NewHandler(reg *prometheus.Registry, queue *alerter.Queue, envPath string) (*Handler, error) {
+func NewHandler(reg *prometheus.Registry, queue *alerter.Queue, history *HistoryStore, envPath string) (*Handler, error) {
 	funcMap := template.FuncMap{
 		"add": func(a, b int) int { return a + b },
 		"sub": func(a, b int) int { return a - b },
@@ -71,12 +75,13 @@ func NewHandler(reg *prometheus.Registry, queue *alerter.Queue, envPath string) 
 		pages[pf] = clone
 	}
 
-	b := NewBroadcaster(reg, 5*time.Second)
+	b := NewBroadcaster(reg, 5*time.Second, history)
 
 	return &Handler{
 		pages:       pages,
 		broadcaster: b,
 		queue:       queue,
+		history:     history,
 		envPath:     envPath,
 	}, nil
 }
@@ -93,6 +98,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/config", h.configAPI)
 	mux.HandleFunc("POST /api/config", h.configAPI)
 	mux.HandleFunc("GET /api/alerts", h.alertsAPI)
+	mux.HandleFunc("GET /api/history", h.historyAPI)
 
 	// Static files
 	staticContent, err := fs.Sub(staticFS, "static")
@@ -137,7 +143,7 @@ func (h *Handler) configPage(w http.ResponseWriter, r *http.Request) {
 
 // alertsPage renders the paginated alert history page.
 func (h *Handler) alertsPage(w http.ResponseWriter, r *http.Request) {
-	const perPage = 20
+	perPage := resolvePerPage(r)
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
@@ -146,9 +152,10 @@ func (h *Handler) alertsPage(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * perPage
 
 	data := pageData{
-		Title:  "Alerts",
-		Active: "alerts",
-		Page:   page,
+		Title:   "Alerts",
+		Active:  "alerts",
+		Page:    page,
+		PerPage: perPage,
 	}
 
 	if h.queue != nil {
@@ -189,6 +196,11 @@ func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		env, err := ReadEnvFile(h.envPath)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]string{})
+				return
+			}
 			slog.Error("failed to read env file", "error", err)
 			jsonError(w, "failed to read env file", http.StatusInternalServerError)
 			return
@@ -225,6 +237,21 @@ func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// resolvePerPage reads the page size from query param, cookie, or default.
+func resolvePerPage(r *http.Request) int {
+	if v := r.URL.Query().Get("perPage"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 100 {
+			return n
+		}
+	}
+	if c, err := r.Cookie("pingpong_alerts_per_page"); err == nil {
+		if n, err := strconv.Atoi(c.Value); err == nil && n > 0 && n <= 100 {
+			return n
+		}
+	}
+	return 20
+}
+
 // alertsAPI returns paginated alerts as JSON.
 func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
 	if h.queue == nil {
@@ -236,7 +263,7 @@ func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const perPage = 20
+	perPage := resolvePerPage(r)
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
 		page = 1
@@ -262,4 +289,28 @@ func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
 		"page":       page,
 		"totalPages": totalPages,
 	})
+}
+
+// historyAPI returns sparkline history as JSON.
+func (h *Handler) historyAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-cache, no-store")
+	w.Header().Set("Content-Type", "application/json")
+
+	if h.history == nil {
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{}); err != nil {
+			slog.Error("failed to encode empty history response", "error", err)
+		}
+		return
+	}
+
+	data, err := h.history.LoadAll(60)
+	if err != nil {
+		slog.Error("failed to load metric history", "error", err)
+		jsonError(w, "failed to load history", http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("failed to encode history response", "error", err)
+	}
 }
