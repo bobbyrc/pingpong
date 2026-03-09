@@ -50,12 +50,24 @@ func main() {
 		slog.Error("failed to create data directory", "path", cfg.DataDir, "error", err)
 		os.Exit(1)
 	}
-	queue, err := alerter.NewQueue(filepath.Join(cfg.DataDir, "alerts.db"))
+	db, err := alerter.OpenDB(filepath.Join(cfg.DataDir, "alerts.db"))
 	if err != nil {
-		slog.Error("failed to open alert queue", "error", err)
+		slog.Error("failed to open database", "error", err)
 		os.Exit(1)
 	}
-	defer queue.Close()
+	defer db.Close()
+
+	queue, err := alerter.NewQueue(db)
+	if err != nil {
+		slog.Error("failed to create alert queue", "error", err)
+		os.Exit(1)
+	}
+
+	history, err := web.NewHistoryStore(db)
+	if err != nil {
+		slog.Warn("failed to create history store — continuing without history", "error", err)
+		history = nil
+	}
 
 	var appriseClient *alerter.AppriseClient
 	if cfg.AppriseURLs != "" {
@@ -71,7 +83,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Web UI
-	webHandler, err := web.NewHandler(reg, queue, cfg.EnvFile)
+	webHandler, err := web.NewHandler(reg, queue, history, cfg.EnvFile)
 	if err != nil {
 		slog.Error("failed to create web handler", "error", err)
 		os.Exit(1)

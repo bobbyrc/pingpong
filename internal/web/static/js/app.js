@@ -176,7 +176,7 @@
 
     // ── Sparkline History (ring buffers) ────────────────────────
 
-    var SPARK_MAX = 30;
+    var SPARK_MAX = 60;
     var pingHistory = {};       // keyed by target
     var downloadHistory = [];
     var uploadHistory = [];
@@ -190,6 +190,43 @@
     // ── CSS color values for sparklines ─────────────────────────
     var COLOR_GREEN = '#22c55e';
     var COLOR_ACCENT = '#6c63ff';
+
+    // ── History Seeding ─────────────────────────────────────────
+
+    function loadHistory() {
+        return fetch('/api/history')
+            .then(function (res) {
+                if (!res.ok) throw new Error('history fetch failed');
+                return res.json();
+            })
+            .then(function (data) {
+                // Seed ping latency history
+                var pingData = data.ping_latency;
+                if (pingData) {
+                    for (var target in pingData) {
+                        if (!pingData.hasOwnProperty(target)) continue;
+                        pingHistory[target] = pingData[target].map(function (p) { return p.v; });
+                    }
+                }
+
+                // Seed download history
+                var dlData = data.download_speed;
+                if (dlData && dlData['']) {
+                    downloadHistory.length = 0;
+                    dlData[''].forEach(function (p) { downloadHistory.push(p.v); });
+                }
+
+                // Seed upload history
+                var ulData = data.upload_speed;
+                if (ulData && ulData['']) {
+                    uploadHistory.length = 0;
+                    ulData[''].forEach(function (p) { uploadHistory.push(p.v); });
+                }
+            })
+            .catch(function () {
+                // Silent fallback — sparklines start empty as before
+            });
+    }
 
     // ── Dashboard Update ────────────────────────────────────────
 
@@ -620,7 +657,11 @@
         };
     }
 
-    connectSSE();
+    if (isDashboard) {
+        loadHistory().then(connectSSE).catch(connectSSE);
+    } else {
+        connectSSE();
+    }
 
     // ── Config Page ─────────────────────────────────────────────
 

@@ -14,7 +14,7 @@ import (
 
 func TestDashboardReturnsHTML(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestDashboardReturnsHTML(t *testing.T) {
 
 func TestDashboardNotFoundForOtherPaths(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestConfigAPIRoundTrip(t *testing.T) {
 	}
 
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, envPath)
+	h, err := NewHandler(reg, nil, nil, envPath)
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestConfigAPIRoundTrip(t *testing.T) {
 
 func TestConfigAPINoEnvPath(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestConfigAPINoEnvPath(t *testing.T) {
 
 func TestStaticFileServing(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestStaticFileServing(t *testing.T) {
 
 func TestAlertsPageNilQueue(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestConfigAPIMissingEnvFile(t *testing.T) {
 	envPath := filepath.Join(dir, ".env")
 
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, envPath)
+	h, err := NewHandler(reg, nil, nil, envPath)
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestConfigAPIMissingEnvFile(t *testing.T) {
 
 func TestAlertsAPINilQueue(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	h, err := NewHandler(reg, nil, "")
+	h, err := NewHandler(reg, nil, nil, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -281,5 +281,87 @@ func TestAlertsAPINilQueue(t *testing.T) {
 	}
 	if resp["total"].(float64) != 0 {
 		t.Errorf("expected total=0, got %v", resp["total"])
+	}
+}
+
+func TestHistoryAPINilStore(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	h, err := NewHandler(reg, nil, nil, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/history", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp) != 0 {
+		t.Errorf("expected empty object, got %v", resp)
+	}
+}
+
+func TestHistoryAPIWithData(t *testing.T) {
+	db := openTestDB(t)
+	store, err := NewHistoryStore(db)
+	if err != nil {
+		t.Fatalf("NewHistoryStore: %v", err)
+	}
+
+	store.Record("ping_latency", "1.1.1.1", 12.5)
+	store.Record("ping_latency", "1.1.1.1", 13.0)
+	store.Record("download_speed", "", 95.2)
+
+	reg := prometheus.NewRegistry()
+	h, err := NewHandler(reg, nil, store, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/history", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	// Parse the nested structure
+	var resp map[string]map[string][]HistoryPoint
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	pingData, ok := resp["ping_latency"]
+	if !ok {
+		t.Fatal("missing ping_latency in response")
+	}
+	points := pingData["1.1.1.1"]
+	if len(points) != 2 {
+		t.Fatalf("expected 2 ping points, got %d", len(points))
+	}
+	if points[0].Value != 12.5 {
+		t.Errorf("first ping value = %v, want 12.5", points[0].Value)
+	}
+
+	dlData, ok := resp["download_speed"]
+	if !ok {
+		t.Fatal("missing download_speed in response")
+	}
+	if len(dlData[""]) != 1 {
+		t.Fatalf("expected 1 download point, got %d", len(dlData[""]))
 	}
 }
