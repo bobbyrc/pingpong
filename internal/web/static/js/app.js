@@ -108,7 +108,18 @@
         ctx.clearRect(0, 0, w, h);
 
         var len = values.length;
-        if (len < 2) return;
+        if (len < 2) {
+            if (len === 1) {
+                // Draw a single dot so the user sees data immediately
+                var dotX = w / 2;
+                var dotY = h / 2;
+                ctx.beginPath();
+                ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+            return;
+        }
 
         var min = Infinity;
         var max = -Infinity;
@@ -552,7 +563,9 @@
         }
     }
 
-    // ── SSE Connection (dashboard only) ─────────────────────────
+    // ── SSE Connection (all pages) ───────────────────────────
+
+    var isDashboard = !!document.getElementById('ping-cards');
 
     function connectSSE() {
         var source = new EventSource('/api/events');
@@ -560,7 +573,11 @@
         source.onmessage = function (e) {
             try {
                 var data = JSON.parse(e.data);
-                updateDashboard(data);
+                if (isDashboard) {
+                    updateDashboard(data);
+                } else if (data.metrics) {
+                    updateConnectionStatus(data.metrics);
+                }
             } catch (err) {
                 // Silently ignore malformed JSON
             }
@@ -590,9 +607,7 @@
         };
     }
 
-    if (document.getElementById('ping-cards')) {
-        connectSSE();
-    }
+    connectSSE();
 
     // ── Config Page ─────────────────────────────────────────────
 
@@ -704,6 +719,17 @@
         loadConfig();
         setupConfigForm();
         setupCollapsible();
+    }
+
+    // ── Alerts Per-Page Dropdown ─────────────────────────────
+
+    var perPageSelect = document.getElementById('per-page-select');
+    if (perPageSelect) {
+        perPageSelect.addEventListener('change', function () {
+            var val = this.value;
+            document.cookie = 'pingpong_alerts_per_page=' + val + ';path=/;max-age=31536000;SameSite=Lax';
+            window.location.href = '/alerts?page=1&perPage=' + val;
+        });
     }
 
 })();

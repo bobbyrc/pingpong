@@ -12,6 +12,7 @@ type SpeedtestResult struct {
 	DownloadMbps   float64
 	UploadMbps     float64
 	LatencyMs      float64
+	JitterMs       float64
 	ServerName     string
 	ServerLocation string
 	ISP            string
@@ -20,6 +21,7 @@ type SpeedtestResult struct {
 type speedtestJSON struct {
 	Ping struct {
 		Latency float64 `json:"latency"`
+		Jitter  float64 `json:"jitter"`
 	} `json:"ping"`
 	Download struct {
 		Bandwidth int64 `json:"bandwidth"`
@@ -44,6 +46,7 @@ func parseSpeedtestOutput(data []byte) (SpeedtestResult, error) {
 		DownloadMbps:   float64(raw.Download.Bandwidth) * 8 / 1_000_000,
 		UploadMbps:     float64(raw.Upload.Bandwidth) * 8 / 1_000_000,
 		LatencyMs:      raw.Ping.Latency,
+		JitterMs:       raw.Ping.Jitter,
 		ServerName:     raw.Server.Name,
 		ServerLocation: raw.Server.Location,
 		ISP:            raw.ISP,
@@ -79,6 +82,7 @@ func (s *SpeedtestCollector) Collect(ctx context.Context) (SpeedtestResult, erro
 		"download_mbps", fmt.Sprintf("%.1f", result.DownloadMbps),
 		"upload_mbps", fmt.Sprintf("%.1f", result.UploadMbps),
 		"latency_ms", fmt.Sprintf("%.1f", result.LatencyMs),
+		"jitter_ms", fmt.Sprintf("%.1f", result.JitterMs),
 		"server", result.ServerName,
 		"isp", result.ISP,
 	)

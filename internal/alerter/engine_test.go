@@ -9,12 +9,17 @@ import (
 	"github.com/bobbyrc/pingpong/internal/config"
 )
 
+// dummyApprise returns a non-nil AppriseClient for tests.
+// fireAlert skips enqueuing when apprise is nil, so tests that
+// expect alerts to be enqueued need a non-nil client.
+var dummyApprise = NewAppriseClient("http://localhost", "test://")
+
 func TestEngineEvaluatePacketLoss(t *testing.T) {
 	dir := t.TempDir()
 	q, _ := NewQueue(filepath.Join(dir, "test.db"))
 	defer q.Close()
 
-	engine := NewEngine(q, nil, &config.Config{
+	engine := NewEngine(q, dummyApprise, &config.Config{
 		AlertPacketLossThreshold: 10,
 		AlertCooldown:           1 * time.Second,
 	})
@@ -39,7 +44,7 @@ func TestEngineEvaluateNoAlert(t *testing.T) {
 	q, _ := NewQueue(filepath.Join(dir, "test.db"))
 	defer q.Close()
 
-	engine := NewEngine(q, nil, &config.Config{
+	engine := NewEngine(q, dummyApprise, &config.Config{
 		AlertPacketLossThreshold: 10,
 		AlertPingThreshold:       100,
 		AlertCooldown:            1 * time.Second,
@@ -62,7 +67,7 @@ func TestEngineCooldown(t *testing.T) {
 	q, _ := NewQueue(filepath.Join(dir, "test.db"))
 	defer q.Close()
 
-	engine := NewEngine(q, nil, &config.Config{
+	engine := NewEngine(q, dummyApprise, &config.Config{
 		AlertPacketLossThreshold: 10,
 		AlertCooldown:            5 * time.Minute,
 	})
@@ -89,7 +94,7 @@ func TestEngineEvaluateSpeed(t *testing.T) {
 	q, _ := NewQueue(filepath.Join(dir, "test.db"))
 	defer q.Close()
 
-	engine := NewEngine(q, nil, &config.Config{
+	engine := NewEngine(q, dummyApprise, &config.Config{
 		AlertSpeedThreshold: 50,
 		AlertCooldown:       1 * time.Second,
 	})
@@ -115,7 +120,7 @@ func TestEngineDisabledThresholds(t *testing.T) {
 	q, _ := NewQueue(filepath.Join(dir, "test.db"))
 	defer q.Close()
 
-	engine := NewEngine(q, nil, &config.Config{
+	engine := NewEngine(q, dummyApprise, &config.Config{
 		AlertPacketLossThreshold: 0,
 		AlertPingThreshold:       0,
 		AlertSpeedThreshold:      0,
@@ -134,5 +139,26 @@ func TestEngineDisabledThresholds(t *testing.T) {
 	pending, _ := q.Pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts with disabled thresholds, got %d", len(pending))
+	}
+}
+
+func TestEngineNoAppriseSkipsEnqueue(t *testing.T) {
+	dir := t.TempDir()
+	q, _ := NewQueue(filepath.Join(dir, "test.db"))
+	defer q.Close()
+
+	engine := NewEngine(q, nil, &config.Config{
+		AlertPacketLossThreshold: 10,
+		AlertCooldown:            1 * time.Second,
+	})
+
+	results := []collector.PingResult{
+		{Target: "1.1.1.1", PacketLoss: 50.0, AvgMs: 20},
+	}
+	engine.EvaluatePing(results)
+
+	pending, _ := q.Pending()
+	if len(pending) != 0 {
+		t.Fatalf("expected 0 alerts when apprise is nil, got %d", len(pending))
 	}
 }
