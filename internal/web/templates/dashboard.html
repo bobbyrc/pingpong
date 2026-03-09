@@ -15,7 +15,7 @@
         <span class="section-subtitle" id="ping-last-update"></span>
     </div>
     <div class="card-grid" id="ping-cards">
-        <!-- Ping target cards are created dynamically by JS -->
+        <p class="loading-placeholder loading" id="ping-loading">Waiting for ping data&hellip;</p>
     </div>
 </section>
 
@@ -31,23 +31,23 @@
             <div class="card-body">
                 <div class="metric-row">
                     <div class="metric">
-                        <span class="metric-value" id="speedtest-download">--</span>
+                        <span class="metric-value loading" id="speedtest-download">--</span>
                         <span class="metric-label">Download <span class="metric-unit">Mbps</span></span>
-                        <canvas class="sparkline" id="speedtest-download-spark" width="200" height="60"></canvas>
+                        <canvas class="sparkline loading" id="speedtest-download-spark" width="200" height="60"></canvas>
                     </div>
                     <div class="metric">
-                        <span class="metric-value" id="speedtest-upload">--</span>
+                        <span class="metric-value loading" id="speedtest-upload">--</span>
                         <span class="metric-label">Upload <span class="metric-unit">Mbps</span></span>
-                        <canvas class="sparkline" id="speedtest-upload-spark" width="200" height="60"></canvas>
+                        <canvas class="sparkline loading" id="speedtest-upload-spark" width="200" height="60"></canvas>
                     </div>
                 </div>
                 <div class="metric-row metric-row-secondary">
                     <div class="metric metric-small">
-                        <span class="metric-value-sm" id="speedtest-latency">--</span>
+                        <span class="metric-value-sm loading" id="speedtest-latency">--</span>
                         <span class="metric-label">Latency <span class="metric-unit">ms</span></span>
                     </div>
                     <div class="metric metric-small">
-                        <span class="metric-value-sm" id="speedtest-jitter">--</span>
+                        <span class="metric-value-sm loading" id="speedtest-jitter">--</span>
                         <span class="metric-label">Jitter <span class="metric-unit">ms</span></span>
                     </div>
                 </div>

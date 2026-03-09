@@ -78,9 +78,9 @@ func main() {
 	}
 	webHandler.RegisterRoutes(mux)
 
-	// Core routes (take precedence due to longer path match)
-	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	// Core routes
+	mux.Handle("GET /metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
 	})
@@ -183,6 +183,7 @@ func main() {
 			m.DownloadSpeed.Set(result.DownloadMbps)
 			m.UploadSpeed.Set(result.UploadMbps)
 			m.SpeedtestLatency.Set(result.LatencyMs)
+			m.SpeedtestJitter.Set(result.JitterMs)
 
 			m.SpeedtestInfo.Reset()
 			if result.ServerName != "" || result.ISP != "" {

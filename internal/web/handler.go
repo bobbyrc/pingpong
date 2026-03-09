@@ -4,11 +4,13 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"html/template"
 	"io/fs"
 	"log/slog"
 	"math"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -41,6 +43,7 @@ type pageData struct {
 	Alerts     []alerter.Alert
 	Page       int
 	TotalPages int
+	PerPage    int
 }
 
 // NewHandler creates a Handler that renders templates, broadcasts SSE
@@ -137,7 +140,7 @@ func (h *Handler) configPage(w http.ResponseWriter, r *http.Request) {
 
 // alertsPage renders the paginated alert history page.
 func (h *Handler) alertsPage(w http.ResponseWriter, r *http.Request) {
-	const perPage = 20
+	perPage := resolvePerPage(r)
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
@@ -146,9 +149,10 @@ func (h *Handler) alertsPage(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * perPage
 
 	data := pageData{
-		Title:  "Alerts",
-		Active: "alerts",
-		Page:   page,
+		Title:   "Alerts",
+		Active:  "alerts",
+		Page:    page,
+		PerPage: perPage,
 	}
 
 	if h.queue != nil {
@@ -189,6 +193,11 @@ func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		env, err := ReadEnvFile(h.envPath)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]string{})
+				return
+			}
 			slog.Error("failed to read env file", "error", err)
 			jsonError(w, "failed to read env file", http.StatusInternalServerError)
 			return
@@ -225,6 +234,21 @@ func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// resolvePerPage reads the page size from query param, cookie, or default.
+func resolvePerPage(r *http.Request) int {
+	if v := r.URL.Query().Get("perPage"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 100 {
+			return n
+		}
+	}
+	if c, err := r.Cookie("pingpong_alerts_per_page"); err == nil {
+		if n, err := strconv.Atoi(c.Value); err == nil && n > 0 && n <= 100 {
+			return n
+		}
+	}
+	return 20
+}
+
 // alertsAPI returns paginated alerts as JSON.
 func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
 	if h.queue == nil {
@@ -236,7 +260,7 @@ func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const perPage = 20
+	perPage := resolvePerPage(r)
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
 		page = 1

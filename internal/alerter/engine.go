@@ -100,6 +100,10 @@ func (e *Engine) EvaluateDowntime(isDown bool, downSince time.Time) {
 // and records the fire time. Using a separate cooldownKey allows per-target deduplication
 // while still storing the canonical alertType in the queue.
 func (e *Engine) fireAlert(cooldownKey, alertType, title, body string) {
+	if e.apprise == nil {
+		return
+	}
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
