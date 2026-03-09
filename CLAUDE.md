@@ -5,6 +5,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Test Commands
 
 ```bash
+make              # Show all available targets
+make up           # Start app + apprise
+make up-all       # Start with monitoring stack
+make down         # Stop default profile
+make down-all     # Stop everything
+make rebuild      # Rebuild image and restart
+make logs         # Tail pingpong logs
+make test         # Run tests (skip integration)
+make check        # Pre-commit quality gate (vet + test + tidy check)
+make env-setup    # Copy .env.example → .env if missing
+make clean        # Remove binary + Docker volumes
+```
+
+Direct Go commands also work:
+
+```bash
 go build ./cmd/pingpong/         # Build the binary
 go test ./...                    # Run all tests
 go test -short ./...             # Skip long-running tests
@@ -13,8 +29,6 @@ go test -run TestEngineName ./internal/alerter/...  # Run a single test
 go vet ./...                     # Static analysis
 go mod tidy                      # Tidy dependencies
 ```
-
-No Makefile or task runner — use standard Go toolchain directly.
 
 ## Architecture
 
