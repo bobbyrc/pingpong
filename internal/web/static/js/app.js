@@ -194,7 +194,7 @@
     // ── History Seeding ─────────────────────────────────────────
 
     function loadHistory() {
-        fetch('/api/history')
+        return fetch('/api/history')
             .then(function (res) {
                 if (!res.ok) throw new Error('history fetch failed');
                 return res.json();
@@ -658,9 +658,10 @@
     }
 
     if (isDashboard) {
-        loadHistory();
+        loadHistory().then(connectSSE).catch(connectSSE);
+    } else {
+        connectSSE();
     }
-    connectSSE();
 
     // ── Config Page ─────────────────────────────────────────────
 

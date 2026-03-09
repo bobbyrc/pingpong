@@ -293,8 +293,10 @@ func (h *Handler) alertsAPI(w http.ResponseWriter, r *http.Request) {
 
 // historyAPI returns sparkline history as JSON.
 func (h *Handler) historyAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-cache, no-store")
+	w.Header().Set("Content-Type", "application/json")
+
 	if h.history == nil {
-		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{})
 		return
 	}
@@ -306,6 +308,5 @@ func (h *Handler) historyAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }
