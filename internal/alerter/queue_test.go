@@ -225,6 +225,64 @@ func TestOpenDBSetsPragmas(t *testing.T) {
 	}
 }
 
+func TestDeleteAlert(t *testing.T) {
+	q := openTestQueue(t)
+
+	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
+	q.Enqueue("key2", "speed", "Alert 2", "Body 2")
+
+	alerts, total, _ := q.RecentAlerts(10, 0)
+	if total != 2 {
+		t.Fatalf("expected 2 alerts, got %d", total)
+	}
+
+	err := q.DeleteAlert(alerts[0].ID)
+	if err != nil {
+		t.Fatalf("DeleteAlert: %v", err)
+	}
+
+	_, total, _ = q.RecentAlerts(10, 0)
+	if total != 1 {
+		t.Fatalf("expected 1 alert after delete, got %d", total)
+	}
+}
+
+func TestDeleteAlertNonExistent(t *testing.T) {
+	q := openTestQueue(t)
+
+	err := q.DeleteAlert(9999)
+	if err != nil {
+		t.Fatalf("DeleteAlert non-existent should not error: %v", err)
+	}
+}
+
+func TestDeleteAllAlerts(t *testing.T) {
+	q := openTestQueue(t)
+
+	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
+	q.Enqueue("key2", "speed", "Alert 2", "Body 2")
+	q.Enqueue("key3", "downtime", "Alert 3", "Body 3")
+
+	err := q.DeleteAllAlerts()
+	if err != nil {
+		t.Fatalf("DeleteAllAlerts: %v", err)
+	}
+
+	_, total, _ := q.RecentAlerts(10, 0)
+	if total != 0 {
+		t.Fatalf("expected 0 alerts after delete all, got %d", total)
+	}
+}
+
+func TestDeleteAllAlertsEmpty(t *testing.T) {
+	q := openTestQueue(t)
+
+	err := q.DeleteAllAlerts()
+	if err != nil {
+		t.Fatalf("DeleteAllAlerts on empty should not error: %v", err)
+	}
+}
+
 func TestQueuePersistence(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")

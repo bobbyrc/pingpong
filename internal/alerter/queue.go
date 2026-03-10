@@ -154,6 +154,18 @@ func (q *Queue) RecentAlerts(limit, offset int) ([]Alert, int, error) {
 	return alerts, total, err
 }
 
+// DeleteAlert removes a single alert by ID.
+func (q *Queue) DeleteAlert(id int64) error {
+	_, err := q.db.Exec("DELETE FROM alerts WHERE id = ?", id)
+	return err
+}
+
+// DeleteAllAlerts removes all alerts from the table.
+func (q *Queue) DeleteAllAlerts() error {
+	_, err := q.db.Exec("DELETE FROM alerts")
+	return err
+}
+
 type cooldownEntry struct {
 	CooldownKey string     `db:"cooldown_key"`
 	LastSent    *time.Time `db:"last_sent"`
