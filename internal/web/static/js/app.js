@@ -355,7 +355,8 @@
             var card = document.getElementById(cardId);
 
             if (!card) {
-                card = createPingCard(cardId, target);
+                var hostname = (entry.labels && entry.labels.hostname) ? entry.labels.hostname : '';
+                card = createPingCard(cardId, target, hostname);
                 container.appendChild(card);
                 // Remove the loading placeholder on first card creation
                 var placeholder = document.getElementById('ping-loading');
@@ -417,14 +418,29 @@
         }
     }
 
-    function createPingCard(id, target) {
+    function createPingCard(id, target, hostname) {
         var card = document.createElement('div');
         card.className = 'card';
         card.id = id;
+
+        var headerHtml;
+        if (hostname && hostname !== target) {
+            headerHtml =
+                '<div class="card-header">' +
+                    '<div class="ping-target-header">' +
+                        '<h3 class="card-title ping-hostname">' + escapeHtml(hostname) + '</h3>' +
+                        '<span class="ping-target-ip font-mono">' + escapeHtml(target) + '</span>' +
+                    '</div>' +
+                '</div>';
+        } else {
+            headerHtml =
+                '<div class="card-header">' +
+                    '<h3 class="card-title ping-target-name font-mono">' + escapeHtml(target) + '</h3>' +
+                '</div>';
+        }
+
         card.innerHTML =
-            '<div class="card-header">' +
-                '<h3 class="card-title ping-target-name font-mono">' + escapeHtml(target) + '</h3>' +
-            '</div>' +
+            headerHtml +
             '<div class="card-body">' +
                 '<div class="metric" style="margin-bottom:12px">' +
                     '<span class="metric-value ping-latency-value">--</span>' +

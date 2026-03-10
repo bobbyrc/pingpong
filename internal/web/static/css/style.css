@@ -376,6 +376,24 @@ button, input, select, textarea {
     margin-bottom: 12px;
 }
 
+.ping-target-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ping-hostname {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ping-target-ip {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
 .ping-metrics {
     display: grid;
     grid-template-columns: 1fr 1fr;
