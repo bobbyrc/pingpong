@@ -394,10 +394,10 @@
             var hist = pingHistory[target];
             if (hist.length === 0 || hist[hist.length - 1] !== entry.value) {
                 pushHistory(hist, entry.value);
-                var sparkCanvas = card.querySelector('.sparkline');
-                if (sparkCanvas) {
-                    drawSparkline(sparkCanvas, hist, COLOR_GREEN);
-                }
+            }
+            var sparkCanvas = card.querySelector('.sparkline');
+            if (sparkCanvas) {
+                drawSparkline(sparkCanvas, hist, COLOR_GREEN);
             }
         });
 
