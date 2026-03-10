@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	_ "modernc.org/sqlite"
 )
 
 func TestBroadcaster_SSE(t *testing.T) {
@@ -164,4 +165,111 @@ func keysOf(m map[string][]MetricValue) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func TestGatherSnapshot_HostnameInjection(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "pingpong_ping_latency_ms",
+		Help: "test",
+	}, []string{"target"})
+	reg.MustRegister(gauge)
+	gauge.WithLabelValues("1.1.1.1").Set(25.0)
+
+	b := NewBroadcaster(reg, time.Second, nil)
+	b.Hostnames = map[string]string{"1.1.1.1": "one.one.one.one"}
+
+	snap, err := b.gatherSnapshot()
+	if err != nil {
+		t.Fatalf("gatherSnapshot: %v", err)
+	}
+
+	vals, ok := snap.Metrics["pingpong_ping_latency_ms"]
+	if !ok {
+		t.Fatal("missing pingpong_ping_latency_ms in snapshot")
+	}
+	if len(vals) != 1 {
+		t.Fatalf("expected 1 value, got %d", len(vals))
+	}
+	hostname, ok := vals[0].Labels["hostname"]
+	if !ok {
+		t.Fatal("expected hostname label to be present")
+	}
+	if hostname != "one.one.one.one" {
+		t.Errorf("hostname = %q, want %q", hostname, "one.one.one.one")
+	}
+}
+
+func TestGatherSnapshot_NoHostnameForUnknownTarget(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "pingpong_ping_latency_ms",
+		Help: "test",
+	}, []string{"target"})
+	reg.MustRegister(gauge)
+	gauge.WithLabelValues("9.9.9.9").Set(30.0)
+
+	b := NewBroadcaster(reg, time.Second, nil)
+	b.Hostnames = map[string]string{"1.1.1.1": "one.one.one.one"}
+
+	snap, err := b.gatherSnapshot()
+	if err != nil {
+		t.Fatalf("gatherSnapshot: %v", err)
+	}
+
+	vals, ok := snap.Metrics["pingpong_ping_latency_ms"]
+	if !ok {
+		t.Fatal("missing pingpong_ping_latency_ms in snapshot")
+	}
+	if len(vals) != 1 {
+		t.Fatalf("expected 1 value, got %d", len(vals))
+	}
+	if _, exists := vals[0].Labels["hostname"]; exists {
+		t.Error("expected no hostname label for unknown target, but it was present")
+	}
+}
+
+func TestBroadcaster_RecordHistoryDedup(t *testing.T) {
+	db := openTestDB(t)
+	store, err := NewHistoryStore(db)
+	if err != nil {
+		t.Fatalf("NewHistoryStore: %v", err)
+	}
+
+	reg := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "pingpong_ping_latency_ms",
+		Help: "test",
+	}, []string{"target"})
+	reg.MustRegister(gauge)
+	gauge.WithLabelValues("1.1.1.1").Set(12.5)
+
+	b := NewBroadcaster(reg, time.Second, store)
+
+	// Record twice with same value — should only persist one row
+	snap1, _ := b.gatherSnapshot()
+	b.recordHistory(snap1)
+	snap2, _ := b.gatherSnapshot()
+	b.recordHistory(snap2)
+
+	points, err := store.Load("ping_latency", "1.1.1.1", 60)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(points) != 1 {
+		t.Errorf("expected 1 point (dedup), got %d", len(points))
+	}
+
+	// Change the value — should persist a second row
+	gauge.WithLabelValues("1.1.1.1").Set(15.0)
+	snap3, _ := b.gatherSnapshot()
+	b.recordHistory(snap3)
+
+	points, err = store.Load("ping_latency", "1.1.1.1", 60)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(points) != 2 {
+		t.Errorf("expected 2 points after value change, got %d", len(points))
+	}
 }

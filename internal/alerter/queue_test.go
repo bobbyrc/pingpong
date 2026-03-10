@@ -225,6 +225,144 @@ func TestOpenDBSetsPragmas(t *testing.T) {
 	}
 }
 
+func TestDeleteAlert(t *testing.T) {
+	q := openTestQueue(t)
+
+	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
+	q.Enqueue("key2", "speed", "Alert 2", "Body 2")
+
+	alerts, total, _ := q.RecentAlerts(10, 0)
+	if total != 2 {
+		t.Fatalf("expected 2 alerts, got %d", total)
+	}
+
+	err := q.DeleteAlert(alerts[0].ID)
+	if err != nil {
+		t.Fatalf("DeleteAlert: %v", err)
+	}
+
+	_, total, _ = q.RecentAlerts(10, 0)
+	if total != 1 {
+		t.Fatalf("expected 1 alert after delete, got %d", total)
+	}
+}
+
+func TestDeleteAlertNonExistent(t *testing.T) {
+	q := openTestQueue(t)
+
+	err := q.DeleteAlert(9999)
+	if err != nil {
+		t.Fatalf("DeleteAlert non-existent should not error: %v", err)
+	}
+}
+
+func TestDeleteAllAlerts(t *testing.T) {
+	q := openTestQueue(t)
+
+	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
+	q.Enqueue("key2", "speed", "Alert 2", "Body 2")
+	q.Enqueue("key3", "downtime", "Alert 3", "Body 3")
+
+	err := q.DeleteAllAlerts()
+	if err != nil {
+		t.Fatalf("DeleteAllAlerts: %v", err)
+	}
+
+	_, total, _ := q.RecentAlerts(10, 0)
+	if total != 0 {
+		t.Fatalf("expected 0 alerts after delete all, got %d", total)
+	}
+}
+
+func TestDeleteAllAlertsEmpty(t *testing.T) {
+	q := openTestQueue(t)
+
+	err := q.DeleteAllAlerts()
+	if err != nil {
+		t.Fatalf("DeleteAllAlerts on empty should not error: %v", err)
+	}
+}
+
+func TestAllCooldowns(t *testing.T) {
+	q := openTestQueue(t)
+
+	// Enqueue two alerts with different cooldown keys.
+	q.Enqueue("latency:1.1.1.1", "latency", "High Latency", "Ping is 200ms")
+	q.Enqueue("packet_loss:8.8.8.8", "packet_loss", "Packet Loss", "50% loss")
+
+	pending, _ := q.Pending()
+	if len(pending) != 2 {
+		t.Fatalf("expected 2 pending, got %d", len(pending))
+	}
+
+	// Mark only the first one as sent.
+	if err := q.MarkSent(pending[0].ID); err != nil {
+		t.Fatalf("MarkSent: %v", err)
+	}
+
+	// AllCooldowns should return only the sent alert's cooldown key.
+	cooldowns, err := q.AllCooldowns()
+	if err != nil {
+		t.Fatalf("AllCooldowns: %v", err)
+	}
+	if len(cooldowns) != 1 {
+		t.Fatalf("expected 1 cooldown entry, got %d", len(cooldowns))
+	}
+
+	sentKey := pending[0].CooldownKey
+	ts, ok := cooldowns[sentKey]
+	if !ok {
+		t.Fatalf("expected cooldown key %q in result, got keys: %v", sentKey, cooldowns)
+	}
+	if time.Since(ts) > 5*time.Second {
+		t.Fatalf("cooldown timestamp should be recent, got %v", ts)
+	}
+
+	// The unsent alert's key should NOT appear.
+	unsentKey := pending[1].CooldownKey
+	if _, exists := cooldowns[unsentKey]; exists {
+		t.Fatalf("did not expect cooldown key %q for unsent alert", unsentKey)
+	}
+}
+
+func TestNewQueueIdempotent(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+
+	db, err := OpenDB(dbPath)
+	if err != nil {
+		t.Fatalf("OpenDB: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	// First call creates the table.
+	q1, err := NewQueue(db)
+	if err != nil {
+		t.Fatalf("first NewQueue: %v", err)
+	}
+
+	// Enqueue something to prove the table works.
+	if err := q1.Enqueue("test", "test", "Test", "body"); err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+
+	// Second call on the same DB should succeed (ALTER TABLE migration
+	// handles "duplicate column" gracefully).
+	q2, err := NewQueue(db)
+	if err != nil {
+		t.Fatalf("second NewQueue should succeed (idempotent), got: %v", err)
+	}
+
+	// Verify the data is still accessible via the second queue handle.
+	pending, err := q2.Pending()
+	if err != nil {
+		t.Fatalf("Pending via q2: %v", err)
+	}
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 pending alert via second queue, got %d", len(pending))
+	}
+}
+
 func TestQueuePersistence(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")

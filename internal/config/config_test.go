@@ -149,3 +149,54 @@ func TestLoadSpeedtestServerID(t *testing.T) {
 		t.Fatalf("expected server ID 12345, got %s", cfg.SpeedtestServerID)
 	}
 }
+
+func TestLoadInvalidInt(t *testing.T) {
+	t.Setenv("PINGPONG_PING_COUNT", "abc")
+	cfg := Load()
+	if cfg.PingCount != 10 {
+		t.Fatalf("expected ping count to fall back to default 10, got %d", cfg.PingCount)
+	}
+}
+
+func TestLoadInvalidDuration(t *testing.T) {
+	t.Setenv("PINGPONG_PING_INTERVAL", "notaduration")
+	cfg := Load()
+	if cfg.PingInterval != 60*time.Second {
+		t.Fatalf("expected ping interval to fall back to default 60s, got %v", cfg.PingInterval)
+	}
+}
+
+func TestLoadInvalidFloat(t *testing.T) {
+	t.Setenv("PINGPONG_ALERT_PING_THRESHOLD", "notanumber")
+	cfg := Load()
+	if cfg.AlertPingThreshold != 100 {
+		t.Fatalf("expected alert ping threshold to fall back to default 100, got %v", cfg.AlertPingThreshold)
+	}
+}
+
+func TestLoadEmptyTargets(t *testing.T) {
+	t.Setenv("PINGPONG_PING_TARGETS", ",, ,")
+	cfg := Load()
+	if len(cfg.PingTargets) != 3 {
+		t.Fatalf("expected 3 default ping targets, got %d: %v", len(cfg.PingTargets), cfg.PingTargets)
+	}
+	if cfg.PingTargets[0] != "1.1.1.1" {
+		t.Fatalf("expected first target 1.1.1.1, got %s", cfg.PingTargets[0])
+	}
+}
+
+func TestLoadAlertRetryInterval(t *testing.T) {
+	t.Setenv("PINGPONG_ALERT_RETRY_INTERVAL", "45s")
+	cfg := Load()
+	if cfg.AlertRetryInterval != 45*time.Second {
+		t.Fatalf("expected alert retry interval 45s, got %v", cfg.AlertRetryInterval)
+	}
+}
+
+func TestLoadAlertMaxRetries(t *testing.T) {
+	t.Setenv("PINGPONG_ALERT_MAX_RETRIES", "5")
+	cfg := Load()
+	if cfg.AlertMaxRetries != 5 {
+		t.Fatalf("expected alert max retries 5, got %d", cfg.AlertMaxRetries)
+	}
+}

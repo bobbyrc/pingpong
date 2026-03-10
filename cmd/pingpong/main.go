@@ -90,6 +90,13 @@ func main() {
 	}
 	webHandler.RegisterRoutes(mux)
 
+	// Resolve hostnames for ping targets
+	hostnames := collector.ResolveHostnames(cfg.PingTargets)
+	for target, hostname := range hostnames {
+		slog.Info("resolved hostname", "target", target, "hostname", hostname)
+	}
+	webHandler.SetHostnames(hostnames)
+
 	// Core routes
 	mux.Handle("GET /metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {

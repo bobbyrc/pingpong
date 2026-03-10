@@ -27,6 +27,17 @@
         return pct.toFixed(1);
     }
 
+    function computeStats(arr) {
+        if (!arr || arr.length === 0) return { min: null, avg: null, max: null };
+        var min = Infinity, max = -Infinity, sum = 0;
+        for (var i = 0; i < arr.length; i++) {
+            if (arr[i] < min) min = arr[i];
+            if (arr[i] > max) max = arr[i];
+            sum += arr[i];
+        }
+        return { min: min, avg: sum / arr.length, max: max };
+    }
+
     function formatDuration(seconds) {
         if (seconds == null || isNaN(seconds) || seconds < 0) return '--';
         seconds = Math.floor(seconds);
@@ -189,7 +200,6 @@
 
     // ── CSS color values for sparklines ─────────────────────────
     var COLOR_GREEN = '#22c55e';
-    var COLOR_ACCENT = '#6c63ff';
 
     // ── History Seeding ─────────────────────────────────────────
 
@@ -345,7 +355,8 @@
             var card = document.getElementById(cardId);
 
             if (!card) {
-                card = createPingCard(cardId, target);
+                var hostname = (entry.labels && entry.labels.hostname) ? entry.labels.hostname : '';
+                card = createPingCard(cardId, target, hostname);
                 container.appendChild(card);
                 // Remove the loading placeholder on first card creation
                 var placeholder = document.getElementById('ping-loading');
@@ -378,13 +389,15 @@
                 setColor(lossVal, lossColor(lossMap[target]));
             }
 
-            // Sparkline history
+            // Sparkline history — only push when value actually changes
             if (!pingHistory[target]) pingHistory[target] = [];
-            pushHistory(pingHistory[target], entry.value);
-
+            var hist = pingHistory[target];
+            if (hist.length === 0 || hist[hist.length - 1] !== entry.value) {
+                pushHistory(hist, entry.value);
+            }
             var sparkCanvas = card.querySelector('.sparkline');
             if (sparkCanvas) {
-                drawSparkline(sparkCanvas, pingHistory[target], COLOR_GREEN);
+                drawSparkline(sparkCanvas, hist, COLOR_GREEN);
             }
         });
 
@@ -405,14 +418,29 @@
         }
     }
 
-    function createPingCard(id, target) {
+    function createPingCard(id, target, hostname) {
         var card = document.createElement('div');
         card.className = 'card';
         card.id = id;
+
+        var headerHtml;
+        if (hostname && hostname !== target) {
+            headerHtml =
+                '<div class="card-header">' +
+                    '<div class="ping-target-header">' +
+                        '<h3 class="card-title ping-hostname">' + escapeHtml(hostname) + '</h3>' +
+                        '<span class="ping-target-ip font-mono">' + escapeHtml(target) + '</span>' +
+                    '</div>' +
+                '</div>';
+        } else {
+            headerHtml =
+                '<div class="card-header">' +
+                    '<h3 class="card-title ping-target-name font-mono">' + escapeHtml(target) + '</h3>' +
+                '</div>';
+        }
+
         card.innerHTML =
-            '<div class="card-header">' +
-                '<h3 class="card-title ping-target-name font-mono">' + escapeHtml(target) + '</h3>' +
-            '</div>' +
+            headerHtml +
             '<div class="card-body">' +
                 '<div class="metric" style="margin-bottom:12px">' +
                     '<span class="metric-value ping-latency-value">--</span>' +
@@ -460,10 +488,13 @@
         if (dlEl && dlEntry) {
             setText(dlEl, formatSpeed(dlEntry.value));
             removeLoading(dlEl);
-            removeLoading(document.getElementById('speedtest-download-spark'));
-            pushHistory(downloadHistory, dlEntry.value);
-            var dlSpark = document.getElementById('speedtest-download-spark');
-            if (dlSpark) drawSparkline(dlSpark, downloadHistory, COLOR_ACCENT);
+            if (downloadHistory.length === 0 || downloadHistory[downloadHistory.length - 1] !== dlEntry.value) {
+                pushHistory(downloadHistory, dlEntry.value);
+            }
+            var dlStats = computeStats(downloadHistory);
+            setText(document.getElementById('dl-min'), formatSpeed(dlStats.min));
+            setText(document.getElementById('dl-avg'), formatSpeed(dlStats.avg));
+            setText(document.getElementById('dl-max'), formatSpeed(dlStats.max));
         }
 
         // Upload
@@ -471,10 +502,13 @@
         if (ulEl && ulEntry) {
             setText(ulEl, formatSpeed(ulEntry.value));
             removeLoading(ulEl);
-            removeLoading(document.getElementById('speedtest-upload-spark'));
-            pushHistory(uploadHistory, ulEntry.value);
-            var ulSpark = document.getElementById('speedtest-upload-spark');
-            if (ulSpark) drawSparkline(ulSpark, uploadHistory, COLOR_ACCENT);
+            if (uploadHistory.length === 0 || uploadHistory[uploadHistory.length - 1] !== ulEntry.value) {
+                pushHistory(uploadHistory, ulEntry.value);
+            }
+            var ulStats = computeStats(uploadHistory);
+            setText(document.getElementById('ul-min'), formatSpeed(ulStats.min));
+            setText(document.getElementById('ul-avg'), formatSpeed(ulStats.avg));
+            setText(document.getElementById('ul-max'), formatSpeed(ulStats.max));
         }
 
         // Latency
@@ -484,7 +518,7 @@
             removeLoading(latEl);
         }
 
-        // Jitter -- SSE may not provide a distinct speedtest jitter metric
+        // Jitter
         var jitEl = document.getElementById('speedtest-jitter');
         if (jitEl) {
             var jitEntry = first(metrics, 'pingpong_speedtest_jitter_ms');
@@ -783,6 +817,39 @@
             var val = this.value;
             document.cookie = 'pingpong_alerts_per_page=' + val + ';path=/;max-age=31536000;SameSite=Lax';
             window.location.href = '/alerts?page=1&perPage=' + val;
+        });
+    }
+
+    // ── Alert Deletion ───────────────────────────────────────
+
+    var clearAllBtn = document.getElementById('clear-all-alerts');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', function () {
+            if (!confirm('Delete all alerts? This cannot be undone.')) return;
+            fetch('/api/alerts', { method: 'DELETE' })
+                .then(function (res) {
+                    if (!res.ok) throw new Error('Delete failed');
+                    window.location.href = '/alerts';
+                })
+                .catch(function (err) {
+                    alert('Failed to delete alerts: ' + err.message);
+                });
+        });
+    }
+
+    var deleteButtons = document.querySelectorAll('.btn-delete-alert');
+    for (var i = 0; i < deleteButtons.length; i++) {
+        deleteButtons[i].addEventListener('click', function () {
+            var id = this.getAttribute('data-alert-id');
+            if (!confirm('Delete this alert?')) return;
+            fetch('/api/alerts/' + id, { method: 'DELETE' })
+                .then(function (res) {
+                    if (!res.ok) throw new Error('Delete failed');
+                    window.location.href = '/alerts';
+                })
+                .catch(function (err) {
+                    alert('Failed to delete alert: ' + err.message);
+                });
         });
     }
 

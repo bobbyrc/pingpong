@@ -67,3 +67,38 @@ func TestParseSpeedtestOutputMissingMetadata(t *testing.T) {
 		t.Fatalf("expected jitter 0, got %f", result.JitterMs)
 	}
 }
+
+func TestParseSpeedtestOutput_InvalidJSON(t *testing.T) {
+	_, err := parseSpeedtestOutput([]byte("not json"))
+	if err == nil {
+		t.Fatalf("expected error for invalid JSON, got nil")
+	}
+}
+
+func TestParseSpeedtestOutput_EmptyJSON(t *testing.T) {
+	result, err := parseSpeedtestOutput([]byte("{}"))
+	if err != nil {
+		t.Fatalf("unexpected error for empty JSON: %v", err)
+	}
+	if result.DownloadMbps != 0 {
+		t.Fatalf("expected download 0, got %f", result.DownloadMbps)
+	}
+	if result.UploadMbps != 0 {
+		t.Fatalf("expected upload 0, got %f", result.UploadMbps)
+	}
+	if result.LatencyMs != 0 {
+		t.Fatalf("expected latency 0, got %f", result.LatencyMs)
+	}
+	if result.JitterMs != 0 {
+		t.Fatalf("expected jitter 0, got %f", result.JitterMs)
+	}
+	if result.ServerName != "" {
+		t.Fatalf("expected empty server name, got %q", result.ServerName)
+	}
+	if result.ServerLocation != "" {
+		t.Fatalf("expected empty server location, got %q", result.ServerLocation)
+	}
+	if result.ISP != "" {
+		t.Fatalf("expected empty ISP, got %q", result.ISP)
+	}
+}

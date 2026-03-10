@@ -40,3 +40,30 @@ func TestParseTracerouteOutput(t *testing.T) {
 		t.Fatalf("expected timeout hop latency 0, got %f", result.Hops[2].LatencyMs)
 	}
 }
+
+func TestParseTracerouteOutput_Empty(t *testing.T) {
+	result := parseTracerouteOutput("", "")
+
+	if result.HopCount != 0 {
+		t.Fatalf("expected 0 hops, got %d", result.HopCount)
+	}
+	if len(result.Hops) != 0 {
+		t.Fatalf("expected empty hops slice, got %d entries", len(result.Hops))
+	}
+}
+
+func TestParseTracerouteOutput_HeaderOnly(t *testing.T) {
+	output := "traceroute to example.com (93.184.216.34), 30 hops max, 60 byte packets\n"
+
+	result := parseTracerouteOutput("example.com", output)
+
+	if result.Target != "example.com" {
+		t.Fatalf("expected target example.com, got %s", result.Target)
+	}
+	if result.HopCount != 0 {
+		t.Fatalf("expected 0 hops, got %d", result.HopCount)
+	}
+	if len(result.Hops) != 0 {
+		t.Fatalf("expected empty hops slice, got %d entries", len(result.Hops))
+	}
+}

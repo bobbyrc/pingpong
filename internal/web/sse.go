@@ -35,17 +35,22 @@ type Broadcaster struct {
 	mu      sync.Mutex
 	clients map[chan []byte]struct{}
 
-	pruneCount int // broadcast ticks since last prune
+	pruneCount int                // broadcast ticks since last prune
+	lastValues map[string]float64 // dedup: last recorded value per "metric:target"
+
+	// Hostnames maps ping target -> resolved hostname (for SSE clients).
+	Hostnames map[string]string
 }
 
 // NewBroadcaster creates a Broadcaster that reads from the given gatherer
 // every interval.
 func NewBroadcaster(gatherer prometheus.Gatherer, interval time.Duration, history *HistoryStore) *Broadcaster {
 	return &Broadcaster{
-		gatherer: gatherer,
-		interval: interval,
-		history:  history,
-		clients:  make(map[chan []byte]struct{}),
+		gatherer:   gatherer,
+		interval:   interval,
+		history:    history,
+		clients:    make(map[chan []byte]struct{}),
+		lastValues: make(map[string]float64),
 	}
 }
 
@@ -107,16 +112,24 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 		b.pruneCount = 0
 	}
 
+	record := func(metric, target string, value float64) {
+		key := metric + ":" + target
+		if last, ok := b.lastValues[key]; ok && last == value {
+			return
+		}
+		b.lastValues[key] = value
+		if err := b.history.Record(metric, target, value); err != nil {
+			slog.Error("failed to record history", "metric", metric, "target", target, "error", err)
+		}
+	}
+
 	// Ping latency per target
 	for _, mv := range snap.Metrics["pingpong_ping_latency_ms"] {
 		target := ""
 		if mv.Labels != nil {
 			target = mv.Labels["target"]
 		}
-		if err := b.history.Record("ping_latency", target, mv.Value); err != nil {
-			slog.Error("failed to record ping history", "target", target, "error", err)
-			continue
-		}
+		record("ping_latency", target, mv.Value)
 		if shouldPrune {
 			if err := b.history.Prune("ping_latency", target, keep); err != nil {
 				slog.Error("failed to prune ping history", "target", target, "error", err)
@@ -126,10 +139,7 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 
 	// Download speed
 	for _, mv := range snap.Metrics["pingpong_download_speed_mbps"] {
-		if err := b.history.Record("download_speed", "", mv.Value); err != nil {
-			slog.Error("failed to record download history", "error", err)
-			continue
-		}
+		record("download_speed", "", mv.Value)
 		if shouldPrune {
 			if err := b.history.Prune("download_speed", "", keep); err != nil {
 				slog.Error("failed to prune download history", "error", err)
@@ -139,10 +149,7 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 
 	// Upload speed
 	for _, mv := range snap.Metrics["pingpong_upload_speed_mbps"] {
-		if err := b.history.Record("upload_speed", "", mv.Value); err != nil {
-			slog.Error("failed to record upload history", "error", err)
-			continue
-		}
+		record("upload_speed", "", mv.Value)
 		if shouldPrune {
 			if err := b.history.Prune("upload_speed", "", keep); err != nil {
 				slog.Error("failed to prune upload history", "error", err)
@@ -249,6 +256,15 @@ func (b *Broadcaster) gatherSnapshot() (*MetricSnapshot, error) {
 				mv.Labels = make(map[string]string, len(pairs))
 				for _, lp := range pairs {
 					mv.Labels[lp.GetName()] = lp.GetValue()
+				}
+			}
+
+			// Inject resolved hostname for ping metrics
+			if b.Hostnames != nil && name == "pingpong_ping_latency_ms" {
+				if mv.Labels != nil {
+					if hostname, ok := b.Hostnames[mv.Labels["target"]]; ok {
+						mv.Labels["hostname"] = hostname
+					}
 				}
 			}
 
