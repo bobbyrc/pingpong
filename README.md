@@ -219,6 +219,18 @@ Set any threshold to `0` to disable that alert entirely.
 
 Alerts are queued in a SQLite database before being sent to Apprise. Sparkline metric history (ping latency, download/upload speed) is also stored in the same database for the web dashboard. The database lives in a Docker volume, so unsent alerts and metric history survive container restarts and brief network outages. When PingPong comes back up, it replays any pending alerts automatically and the dashboard sparklines show recent history.
 
+## Upgrading from Loki 2.x
+
+If you previously ran the monitoring profile with Loki 2.x, the existing `loki-data` Docker volume is owned by root. Loki 3.x runs as a non-root user (UID 10001) and will fail to start with a `permission denied` error. To fix this, remove the old volume and let Docker recreate it:
+
+```bash
+docker compose --profile monitoring down
+docker volume rm pingpong_loki-data
+docker compose --profile monitoring up -d
+```
+
+This will delete any stored Loki log data. Prometheus metrics and Grafana dashboards are unaffected.
+
 ## Accessing Services
 
 | Service | URL | Credentials | Profile |
