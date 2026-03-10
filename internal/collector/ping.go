@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"net"
+	"strings"
 	"time"
 
 	probing "github.com/prometheus-community/pro-bing"
@@ -113,4 +115,29 @@ func (p *PingCollector) ping(ctx context.Context, target string) (PingResult, er
 		stats.PacketsSent,
 		stats.PacketsSent-stats.PacketsRecv,
 	), nil
+}
+
+// ResolveHostnames performs reverse DNS lookups for each target and returns
+// a map of target -> hostname. Targets that are already hostnames (not IPs)
+// are mapped to themselves. If lookup fails, the target is omitted.
+func ResolveHostnames(targets []string) map[string]string {
+	result := make(map[string]string, len(targets))
+	for _, target := range targets {
+		ip := net.ParseIP(target)
+		if ip == nil {
+			// Already a hostname
+			result[target] = target
+			continue
+		}
+		names, err := net.LookupAddr(target)
+		if err != nil || len(names) == 0 {
+			continue
+		}
+		// LookupAddr returns FQDNs with trailing dot; trim it
+		hostname := strings.TrimRight(names[0], ".")
+		if hostname != "" {
+			result[target] = hostname
+		}
+	}
+	return result
 }

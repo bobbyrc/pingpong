@@ -60,3 +60,17 @@ func TestCalculatePingResultAllLost(t *testing.T) {
 		t.Fatalf("expected avg 0 with no responses, got %f", result.AvgMs)
 	}
 }
+
+func TestResolveHostnames_HostnameTarget(t *testing.T) {
+	result := ResolveHostnames([]string{"example.com"})
+	if result["example.com"] != "example.com" {
+		t.Errorf("expected hostname target to map to itself, got %q", result["example.com"])
+	}
+}
+
+func TestResolveHostnames_NonIPTarget(t *testing.T) {
+	result := ResolveHostnames([]string{"not-an-ip"})
+	if result["not-an-ip"] != "not-an-ip" {
+		t.Errorf("expected non-IP to map to itself, got %q", result["not-an-ip"])
+	}
+}

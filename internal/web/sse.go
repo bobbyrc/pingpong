@@ -37,6 +37,9 @@ type Broadcaster struct {
 
 	pruneCount int                // broadcast ticks since last prune
 	lastValues map[string]float64 // dedup: last recorded value per "metric:target"
+
+	// Hostnames maps ping target -> resolved hostname (for SSE clients).
+	Hostnames map[string]string
 }
 
 // NewBroadcaster creates a Broadcaster that reads from the given gatherer
@@ -253,6 +256,15 @@ func (b *Broadcaster) gatherSnapshot() (*MetricSnapshot, error) {
 				mv.Labels = make(map[string]string, len(pairs))
 				for _, lp := range pairs {
 					mv.Labels[lp.GetName()] = lp.GetValue()
+				}
+			}
+
+			// Inject resolved hostname for ping metrics
+			if b.Hostnames != nil && name == "pingpong_ping_latency_ms" {
+				if mv.Labels != nil {
+					if hostname, ok := b.Hostnames[mv.Labels["target"]]; ok {
+						mv.Labels["hostname"] = hostname
+					}
 				}
 			}
 

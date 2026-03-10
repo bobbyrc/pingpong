@@ -357,3 +357,8 @@ func (h *Handler) deleteAllAlertsAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
+
+// SetHostnames passes resolved hostnames to the broadcaster for SSE clients.
+func (h *Handler) SetHostnames(hostnames map[string]string) {
+	h.broadcaster.Hostnames = hostnames
+}
