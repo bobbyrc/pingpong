@@ -4,16 +4,28 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
+
+// isFileNotExist reports whether err indicates the file at path does not exist
+// but its parent directory does. This distinguishes "file not yet created"
+// (safe to create) from "parent directory missing" (likely misconfiguration).
+func isFileNotExist(path string, err error) bool {
+	if !os.IsNotExist(err) {
+		return false
+	}
+	_, dirErr := os.Stat(filepath.Dir(path))
+	return dirErr == nil
+}
 
 // ReadEnvFile reads a .env file and returns a map of key=value pairs.
 // Comments (lines starting with #) and blank lines are skipped.
 func ReadEnvFile(path string) (map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if isFileNotExist(path, err) {
 			return make(map[string]string), nil
 		}
 		return nil, fmt.Errorf("open env file: %w", err)
@@ -48,7 +60,7 @@ func WriteEnvFile(path string, updates map[string]string) error {
 	seen := make(map[string]bool)
 
 	f, err := os.Open(path)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !isFileNotExist(path, err) {
 		return fmt.Errorf("open env file: %w", err)
 	}
 	if err == nil {

@@ -71,6 +71,20 @@ func TestReadEnvFile_NotFound(t *testing.T) {
 	}
 }
 
+func TestReadEnvFile_ParentDirMissing(t *testing.T) {
+	_, err := ReadEnvFile(filepath.Join(t.TempDir(), "no-such-dir", ".env"))
+	if err == nil {
+		t.Fatal("expected error when parent directory does not exist")
+	}
+}
+
+func TestWriteEnvFile_ParentDirMissing(t *testing.T) {
+	err := WriteEnvFile(filepath.Join(t.TempDir(), "no-such-dir", ".env"), map[string]string{"A": "1"})
+	if err == nil {
+		t.Fatal("expected error when parent directory does not exist")
+	}
+}
+
 func TestWriteEnvFile_CreatesFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".env")
