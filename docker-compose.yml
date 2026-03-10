@@ -57,13 +57,16 @@ services:
   loki:
     image: grafana/loki:latest
     container_name: pingpong-loki
+    user: "10001:10001"
     restart: unless-stopped
     profiles:
       - monitoring
     ports:
       - "3100:3100"
     volumes:
+      - ./loki.yml:/etc/loki/loki.yml:ro
       - loki-data:/loki
+    command: -config.file=/etc/loki/loki.yml
 
   promtail:
     image: grafana/promtail:latest
