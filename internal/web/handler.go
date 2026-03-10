@@ -98,6 +98,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/config", h.configAPI)
 	mux.HandleFunc("POST /api/config", h.configAPI)
 	mux.HandleFunc("GET /api/alerts", h.alertsAPI)
+	mux.HandleFunc("DELETE /api/alerts/{id}", h.deleteAlertAPI)
+	mux.HandleFunc("DELETE /api/alerts", h.deleteAllAlertsAPI)
 	mux.HandleFunc("GET /api/history", h.historyAPI)
 
 	// Static files
@@ -313,4 +315,45 @@ func (h *Handler) historyAPI(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		slog.Error("failed to encode history response", "error", err)
 	}
+}
+
+// deleteAlertAPI deletes a single alert by ID.
+func (h *Handler) deleteAlertAPI(w http.ResponseWriter, r *http.Request) {
+	if h.queue == nil {
+		jsonError(w, "alert queue not configured", http.StatusNotFound)
+		return
+	}
+
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "invalid alert ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.queue.DeleteAlert(id); err != nil {
+		slog.Error("failed to delete alert", "id", id, "error", err)
+		jsonError(w, "failed to delete alert", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+// deleteAllAlertsAPI deletes all alerts.
+func (h *Handler) deleteAllAlertsAPI(w http.ResponseWriter, r *http.Request) {
+	if h.queue == nil {
+		jsonError(w, "alert queue not configured", http.StatusNotFound)
+		return
+	}
+
+	if err := h.queue.DeleteAllAlerts(); err != nil {
+		slog.Error("failed to delete all alerts", "error", err)
+		jsonError(w, "failed to delete alerts", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }

@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bobbyrc/pingpong/internal/alerter"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -363,5 +365,108 @@ func TestHistoryAPIWithData(t *testing.T) {
 	}
 	if len(dlData[""]) != 1 {
 		t.Fatalf("expected 1 download point, got %d", len(dlData[""]))
+	}
+}
+
+func TestDeleteAlertAPI(t *testing.T) {
+	db := openTestDB(t)
+	q, err := alerter.NewQueue(db)
+	if err != nil {
+		t.Fatalf("NewQueue: %v", err)
+	}
+	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
+	q.Enqueue("key2", "speed", "Alert 2", "Body 2")
+
+	reg := prometheus.NewRegistry()
+	h, err := NewHandler(reg, q, nil, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	// Get alerts to find an ID
+	req := httptest.NewRequest(http.MethodGet, "/api/alerts", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	var resp map[string]interface{}
+	json.NewDecoder(rec.Body).Decode(&resp)
+	alerts := resp["alerts"].([]interface{})
+	alertID := int64(alerts[0].(map[string]interface{})["ID"].(float64))
+
+	// DELETE single alert
+	req = httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/alerts/%d", alertID), nil)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify only 1 remains
+	req = httptest.NewRequest(http.MethodGet, "/api/alerts", nil)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp["total"].(float64) != 1 {
+		t.Errorf("expected 1 alert remaining, got %v", resp["total"])
+	}
+}
+
+func TestDeleteAllAlertsAPI(t *testing.T) {
+	db := openTestDB(t)
+	q, err := alerter.NewQueue(db)
+	if err != nil {
+		t.Fatalf("NewQueue: %v", err)
+	}
+	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
+	q.Enqueue("key2", "speed", "Alert 2", "Body 2")
+
+	reg := prometheus.NewRegistry()
+	h, err := NewHandler(reg, q, nil, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/alerts", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify 0 remain
+	req = httptest.NewRequest(http.MethodGet, "/api/alerts", nil)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	var resp map[string]interface{}
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp["total"].(float64) != 0 {
+		t.Errorf("expected 0 alerts, got %v", resp["total"])
+	}
+}
+
+func TestDeleteAlertAPINilQueue(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	h, err := NewHandler(reg, nil, nil, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/alerts/1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 with nil queue, got %d", rec.Code)
 	}
 }
