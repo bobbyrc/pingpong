@@ -378,13 +378,15 @@
                 setColor(lossVal, lossColor(lossMap[target]));
             }
 
-            // Sparkline history
+            // Sparkline history — only push when value actually changes
             if (!pingHistory[target]) pingHistory[target] = [];
-            pushHistory(pingHistory[target], entry.value);
-
-            var sparkCanvas = card.querySelector('.sparkline');
-            if (sparkCanvas) {
-                drawSparkline(sparkCanvas, pingHistory[target], COLOR_GREEN);
+            var hist = pingHistory[target];
+            if (hist.length === 0 || hist[hist.length - 1] !== entry.value) {
+                pushHistory(hist, entry.value);
+                var sparkCanvas = card.querySelector('.sparkline');
+                if (sparkCanvas) {
+                    drawSparkline(sparkCanvas, hist, COLOR_GREEN);
+                }
             }
         });
 
@@ -461,7 +463,9 @@
             setText(dlEl, formatSpeed(dlEntry.value));
             removeLoading(dlEl);
             removeLoading(document.getElementById('speedtest-download-spark'));
-            pushHistory(downloadHistory, dlEntry.value);
+            if (downloadHistory.length === 0 || downloadHistory[downloadHistory.length - 1] !== dlEntry.value) {
+                pushHistory(downloadHistory, dlEntry.value);
+            }
             var dlSpark = document.getElementById('speedtest-download-spark');
             if (dlSpark) drawSparkline(dlSpark, downloadHistory, COLOR_ACCENT);
         }
@@ -472,7 +476,9 @@
             setText(ulEl, formatSpeed(ulEntry.value));
             removeLoading(ulEl);
             removeLoading(document.getElementById('speedtest-upload-spark'));
-            pushHistory(uploadHistory, ulEntry.value);
+            if (uploadHistory.length === 0 || uploadHistory[uploadHistory.length - 1] !== ulEntry.value) {
+                pushHistory(uploadHistory, ulEntry.value);
+            }
             var ulSpark = document.getElementById('speedtest-upload-spark');
             if (ulSpark) drawSparkline(ulSpark, uploadHistory, COLOR_ACCENT);
         }
