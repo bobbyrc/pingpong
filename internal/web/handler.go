@@ -4,13 +4,11 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
-	"errors"
 	"html/template"
 	"io/fs"
 	"log/slog"
 	"math"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -200,11 +198,6 @@ func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		env, err := ReadEnvFile(h.envPath)
 		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(map[string]string{})
-				return
-			}
 			slog.Error("failed to read env file", "error", err)
 			jsonError(w, "failed to read env file", http.StatusInternalServerError)
 			return

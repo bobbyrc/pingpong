@@ -13,6 +13,9 @@ import (
 func ReadEnvFile(path string) (map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[string]string), nil
+		}
 		return nil, fmt.Errorf("open env file: %w", err)
 	}
 	defer f.Close()
@@ -41,40 +44,42 @@ func ReadEnvFile(path string) (map[string]string, error) {
 // Existing keys are updated in place, preserving comments and blank lines.
 // New keys (those not already present in the file) are appended at the end.
 func WriteEnvFile(path string, updates map[string]string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("open env file: %w", err)
-	}
-	defer f.Close()
-
 	var lines []string
 	seen := make(map[string]bool)
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
 
-		// Preserve comments and blank lines as-is.
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			lines = append(lines, line)
-			continue
-		}
-
-		key, _, ok := strings.Cut(trimmed, "=")
-		if !ok {
-			lines = append(lines, line)
-			continue
-		}
-
-		if newVal, found := updates[key]; found {
-			lines = append(lines, key+"="+newVal)
-			seen[key] = true
-		} else {
-			lines = append(lines, line)
-		}
+	f, err := os.Open(path)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("open env file: %w", err)
 	}
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("scan env file: %w", err)
+	if err == nil {
+		defer f.Close()
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			line := scanner.Text()
+			trimmed := strings.TrimSpace(line)
+
+			// Preserve comments and blank lines as-is.
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				lines = append(lines, line)
+				continue
+			}
+
+			key, _, ok := strings.Cut(trimmed, "=")
+			if !ok {
+				lines = append(lines, line)
+				continue
+			}
+
+			if newVal, found := updates[key]; found {
+				lines = append(lines, key+"="+newVal)
+				seen[key] = true
+			} else {
+				lines = append(lines, line)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("scan env file: %w", err)
+		}
 	}
 
 	// Append any new keys not already in the file.

@@ -62,9 +62,37 @@ func TestReadEnvFile_BlankLinesAndValuesWithEquals(t *testing.T) {
 }
 
 func TestReadEnvFile_NotFound(t *testing.T) {
-	_, err := ReadEnvFile("/nonexistent/.env")
-	if err == nil {
-		t.Fatal("expected error for missing file")
+	env, err := ReadEnvFile(filepath.Join(t.TempDir(), ".env"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(env) != 0 {
+		t.Fatalf("expected empty map, got %v", env)
+	}
+}
+
+func TestWriteEnvFile_CreatesFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	updates := map[string]string{
+		"FOO": "bar",
+		"BAZ": "qux",
+	}
+	if err := WriteEnvFile(path, updates); err != nil {
+		t.Fatalf("WriteEnvFile: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := string(data)
+	if !strings.Contains(result, "FOO=bar") {
+		t.Error("FOO not written")
+	}
+	if !strings.Contains(result, "BAZ=qux") {
+		t.Error("BAZ not written")
 	}
 }
 
