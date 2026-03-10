@@ -491,6 +491,35 @@ button, input, select, textarea {
     margin-right: 4px;
 }
 
+/* --- Speed Stats (min/avg/max) -------------------------------- */
+.speed-stats {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+
+.speed-stat {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.speed-stat-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    margin-right: 3px;
+}
+
+.speed-stat-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
 /* --- Tables ------------------------------------------------ */
 .table {
     width: 100%;

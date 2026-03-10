@@ -33,12 +33,20 @@
                     <div class="metric">
                         <span class="metric-value loading" id="speedtest-download">--</span>
                         <span class="metric-label">Download <span class="metric-unit">Mbps</span></span>
-                        <canvas class="sparkline loading" id="speedtest-download-spark" width="200" height="60"></canvas>
+                        <div class="speed-stats" id="speedtest-download-stats">
+                            <span class="speed-stat"><span class="speed-stat-label">Min</span> <span class="speed-stat-value" id="dl-min">--</span></span>
+                            <span class="speed-stat"><span class="speed-stat-label">Avg</span> <span class="speed-stat-value" id="dl-avg">--</span></span>
+                            <span class="speed-stat"><span class="speed-stat-label">Max</span> <span class="speed-stat-value" id="dl-max">--</span></span>
+                        </div>
                     </div>
                     <div class="metric">
                         <span class="metric-value loading" id="speedtest-upload">--</span>
                         <span class="metric-label">Upload <span class="metric-unit">Mbps</span></span>
-                        <canvas class="sparkline loading" id="speedtest-upload-spark" width="200" height="60"></canvas>
+                        <div class="speed-stats" id="speedtest-upload-stats">
+                            <span class="speed-stat"><span class="speed-stat-label">Min</span> <span class="speed-stat-value" id="ul-min">--</span></span>
+                            <span class="speed-stat"><span class="speed-stat-label">Avg</span> <span class="speed-stat-value" id="ul-avg">--</span></span>
+                            <span class="speed-stat"><span class="speed-stat-label">Max</span> <span class="speed-stat-value" id="ul-max">--</span></span>
+                        </div>
                     </div>
                 </div>
                 <div class="metric-row metric-row-secondary">

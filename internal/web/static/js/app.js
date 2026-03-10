@@ -27,6 +27,17 @@
         return pct.toFixed(1);
     }
 
+    function computeStats(arr) {
+        if (!arr || arr.length === 0) return { min: null, avg: null, max: null };
+        var min = Infinity, max = -Infinity, sum = 0;
+        for (var i = 0; i < arr.length; i++) {
+            if (arr[i] < min) min = arr[i];
+            if (arr[i] > max) max = arr[i];
+            sum += arr[i];
+        }
+        return { min: min, avg: sum / arr.length, max: max };
+    }
+
     function formatDuration(seconds) {
         if (seconds == null || isNaN(seconds) || seconds < 0) return '--';
         seconds = Math.floor(seconds);
@@ -189,7 +200,6 @@
 
     // ── CSS color values for sparklines ─────────────────────────
     var COLOR_GREEN = '#22c55e';
-    var COLOR_ACCENT = '#6c63ff';
 
     // ── History Seeding ─────────────────────────────────────────
 
@@ -462,12 +472,13 @@
         if (dlEl && dlEntry) {
             setText(dlEl, formatSpeed(dlEntry.value));
             removeLoading(dlEl);
-            removeLoading(document.getElementById('speedtest-download-spark'));
             if (downloadHistory.length === 0 || downloadHistory[downloadHistory.length - 1] !== dlEntry.value) {
                 pushHistory(downloadHistory, dlEntry.value);
             }
-            var dlSpark = document.getElementById('speedtest-download-spark');
-            if (dlSpark) drawSparkline(dlSpark, downloadHistory, COLOR_ACCENT);
+            var dlStats = computeStats(downloadHistory);
+            setText(document.getElementById('dl-min'), formatSpeed(dlStats.min));
+            setText(document.getElementById('dl-avg'), formatSpeed(dlStats.avg));
+            setText(document.getElementById('dl-max'), formatSpeed(dlStats.max));
         }
 
         // Upload
@@ -475,12 +486,13 @@
         if (ulEl && ulEntry) {
             setText(ulEl, formatSpeed(ulEntry.value));
             removeLoading(ulEl);
-            removeLoading(document.getElementById('speedtest-upload-spark'));
             if (uploadHistory.length === 0 || uploadHistory[uploadHistory.length - 1] !== ulEntry.value) {
                 pushHistory(uploadHistory, ulEntry.value);
             }
-            var ulSpark = document.getElementById('speedtest-upload-spark');
-            if (ulSpark) drawSparkline(ulSpark, uploadHistory, COLOR_ACCENT);
+            var ulStats = computeStats(uploadHistory);
+            setText(document.getElementById('ul-min'), formatSpeed(ulStats.min));
+            setText(document.getElementById('ul-avg'), formatSpeed(ulStats.avg));
+            setText(document.getElementById('ul-max'), formatSpeed(ulStats.max));
         }
 
         // Latency
@@ -490,7 +502,7 @@
             removeLoading(latEl);
         }
 
-        // Jitter -- SSE may not provide a distinct speedtest jitter metric
+        // Jitter
         var jitEl = document.getElementById('speedtest-jitter');
         if (jitEl) {
             var jitEntry = first(metrics, 'pingpong_speedtest_jitter_ms');
