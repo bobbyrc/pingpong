@@ -804,4 +804,37 @@
         });
     }
 
+    // ── Alert Deletion ───────────────────────────────────────
+
+    var clearAllBtn = document.getElementById('clear-all-alerts');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', function () {
+            if (!confirm('Delete all alerts? This cannot be undone.')) return;
+            fetch('/api/alerts', { method: 'DELETE' })
+                .then(function (res) {
+                    if (!res.ok) throw new Error('Delete failed');
+                    window.location.reload();
+                })
+                .catch(function (err) {
+                    alert('Failed to delete alerts: ' + err.message);
+                });
+        });
+    }
+
+    var deleteButtons = document.querySelectorAll('.btn-delete-alert');
+    for (var i = 0; i < deleteButtons.length; i++) {
+        deleteButtons[i].addEventListener('click', function () {
+            var id = this.getAttribute('data-alert-id');
+            if (!confirm('Delete this alert?')) return;
+            fetch('/api/alerts/' + id, { method: 'DELETE' })
+                .then(function (res) {
+                    if (!res.ok) throw new Error('Delete failed');
+                    window.location.reload();
+                })
+                .catch(function (err) {
+                    alert('Failed to delete alert: ' + err.message);
+                });
+        });
+    }
+
 })();
