@@ -225,7 +225,7 @@ If you previously ran the monitoring profile with Loki 2.x, the existing `loki-d
 
 ```bash
 docker compose --profile monitoring down
-docker volume rm pingpong_loki-data
+docker volume rm $(docker volume ls -q --filter name=loki-data)
 docker compose --profile monitoring up -d
 ```
 
