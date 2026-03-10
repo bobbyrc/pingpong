@@ -829,7 +829,7 @@
             fetch('/api/alerts', { method: 'DELETE' })
                 .then(function (res) {
                     if (!res.ok) throw new Error('Delete failed');
-                    window.location.reload();
+                    window.location.href = '/alerts';
                 })
                 .catch(function (err) {
                     alert('Failed to delete alerts: ' + err.message);
@@ -845,7 +845,7 @@
             fetch('/api/alerts/' + id, { method: 'DELETE' })
                 .then(function (res) {
                     if (!res.ok) throw new Error('Delete failed');
-                    window.location.reload();
+                    window.location.href = '/alerts';
                 })
                 .catch(function (err) {
                     alert('Failed to delete alert: ' + err.message);

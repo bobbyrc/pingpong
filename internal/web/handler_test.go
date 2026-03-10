@@ -374,8 +374,12 @@ func TestDeleteAlertAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewQueue: %v", err)
 	}
-	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
-	q.Enqueue("key2", "speed", "Alert 2", "Body 2")
+	if err := q.Enqueue("key1", "latency", "Alert 1", "Body 1"); err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+	if err := q.Enqueue("key2", "speed", "Alert 2", "Body 2"); err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
 
 	reg := prometheus.NewRegistry()
 	h, err := NewHandler(reg, q, nil, "")
@@ -391,10 +395,22 @@ func TestDeleteAlertAPI(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /api/alerts: expected 200, got %d", rec.Code)
+	}
 	var resp map[string]interface{}
-	json.NewDecoder(rec.Body).Decode(&resp)
-	alerts := resp["alerts"].([]interface{})
-	alertID := int64(alerts[0].(map[string]interface{})["ID"].(float64))
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode GET /api/alerts response: %v", err)
+	}
+	alerts, ok := resp["alerts"].([]interface{})
+	if !ok || len(alerts) == 0 {
+		t.Fatal("expected non-empty alerts array")
+	}
+	first, ok := alerts[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected alert object")
+	}
+	alertID := int64(first["ID"].(float64))
 
 	// DELETE single alert
 	req = httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/alerts/%d", alertID), nil)
@@ -409,7 +425,9 @@ func TestDeleteAlertAPI(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/api/alerts", nil)
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	json.NewDecoder(rec.Body).Decode(&resp)
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode verification response: %v", err)
+	}
 	if resp["total"].(float64) != 1 {
 		t.Errorf("expected 1 alert remaining, got %v", resp["total"])
 	}
@@ -421,8 +439,12 @@ func TestDeleteAllAlertsAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewQueue: %v", err)
 	}
-	q.Enqueue("key1", "latency", "Alert 1", "Body 1")
-	q.Enqueue("key2", "speed", "Alert 2", "Body 2")
+	if err := q.Enqueue("key1", "latency", "Alert 1", "Body 1"); err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+	if err := q.Enqueue("key2", "speed", "Alert 2", "Body 2"); err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
 
 	reg := prometheus.NewRegistry()
 	h, err := NewHandler(reg, q, nil, "")
@@ -446,7 +468,9 @@ func TestDeleteAllAlertsAPI(t *testing.T) {
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	var resp map[string]interface{}
-	json.NewDecoder(rec.Body).Decode(&resp)
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode verification response: %v", err)
+	}
 	if resp["total"].(float64) != 0 {
 		t.Errorf("expected 0 alerts, got %v", resp["total"])
 	}

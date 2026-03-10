@@ -120,8 +120,10 @@ func (p *PingCollector) ping(ctx context.Context, target string) (PingResult, er
 // ResolveHostnames performs reverse DNS lookups for each target and returns
 // a map of target -> hostname. Targets that are already hostnames (not IPs)
 // are mapped to themselves. If lookup fails, the target is omitted.
+// Each lookup has a 2-second timeout to avoid blocking startup.
 func ResolveHostnames(targets []string) map[string]string {
 	result := make(map[string]string, len(targets))
+	resolver := net.DefaultResolver
 	for _, target := range targets {
 		ip := net.ParseIP(target)
 		if ip == nil {
@@ -129,7 +131,9 @@ func ResolveHostnames(targets []string) map[string]string {
 			result[target] = target
 			continue
 		}
-		names, err := net.LookupAddr(target)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		names, err := resolver.LookupAddr(ctx, target)
+		cancel()
 		if err != nil || len(names) == 0 {
 			continue
 		}

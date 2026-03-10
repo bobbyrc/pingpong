@@ -42,6 +42,7 @@ type pageData struct {
 	Title      string
 	Active     string // "dashboard", "alerts", "config"
 	Alerts     []alerter.Alert
+	Total      int
 	Page       int
 	TotalPages int
 	PerPage    int
@@ -166,6 +167,7 @@ func (h *Handler) alertsPage(w http.ResponseWriter, r *http.Request) {
 			slog.Error("failed to query alerts", "error", err)
 		} else {
 			data.Alerts = alerts
+			data.Total = total
 			data.TotalPages = int(math.Ceil(float64(total) / float64(perPage)))
 			if data.TotalPages < 1 {
 				data.TotalPages = 1

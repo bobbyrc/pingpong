@@ -67,6 +67,18 @@ a {
     transition: color var(--transition);
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 a:hover {
     color: var(--accent-hover);
 }
@@ -690,6 +702,11 @@ button, input, select, textarea {
     border-color: rgba(239, 68, 68, 0.5);
 }
 
+.btn-danger:focus-visible {
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
+}
+
 .btn-icon {
     display: inline-flex;
     align-items: center;
@@ -709,6 +726,11 @@ button, input, select, textarea {
 .btn-icon:hover {
     background: var(--red-dim);
     color: var(--red);
+}
+
+.btn-icon:focus-visible {
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
 }
 
 /* --- Empty State ------------------------------------------- */

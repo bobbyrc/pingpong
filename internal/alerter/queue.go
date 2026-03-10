@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -190,6 +191,7 @@ func (q *Queue) AllCooldowns() (map[string]time.Time, error) {
 			// Try RFC3339 as a fallback.
 			t, err = time.Parse(time.RFC3339, *e.LastSent)
 			if err != nil {
+				slog.Warn("AllCooldowns: unparseable timestamp, skipping entry", "cooldown_key", e.CooldownKey, "last_sent", *e.LastSent, "error", err)
 				continue
 			}
 		}
