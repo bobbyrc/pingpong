@@ -108,6 +108,14 @@ func TestWriteEnvFile_CreatesFile(t *testing.T) {
 	if !strings.Contains(result, "BAZ=qux") {
 		t.Error("BAZ not written")
 	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("file permissions = %o, want 0600", perm)
+	}
 }
 
 func TestWriteEnvFile(t *testing.T) {

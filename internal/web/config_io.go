@@ -107,7 +107,7 @@ func WriteEnvFile(path string, updates map[string]string) error {
 	}
 
 	content := strings.Join(lines, "\n") + "\n"
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		return fmt.Errorf("write env file: %w", err)
 	}
 	return nil
