@@ -167,6 +167,68 @@ func keysOf(m map[string][]MetricValue) []string {
 	return keys
 }
 
+func TestGatherSnapshot_HostnameInjection(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "pingpong_ping_latency_ms",
+		Help: "test",
+	}, []string{"target"})
+	reg.MustRegister(gauge)
+	gauge.WithLabelValues("1.1.1.1").Set(25.0)
+
+	b := NewBroadcaster(reg, time.Second, nil)
+	b.Hostnames = map[string]string{"1.1.1.1": "one.one.one.one"}
+
+	snap, err := b.gatherSnapshot()
+	if err != nil {
+		t.Fatalf("gatherSnapshot: %v", err)
+	}
+
+	vals, ok := snap.Metrics["pingpong_ping_latency_ms"]
+	if !ok {
+		t.Fatal("missing pingpong_ping_latency_ms in snapshot")
+	}
+	if len(vals) != 1 {
+		t.Fatalf("expected 1 value, got %d", len(vals))
+	}
+	hostname, ok := vals[0].Labels["hostname"]
+	if !ok {
+		t.Fatal("expected hostname label to be present")
+	}
+	if hostname != "one.one.one.one" {
+		t.Errorf("hostname = %q, want %q", hostname, "one.one.one.one")
+	}
+}
+
+func TestGatherSnapshot_NoHostnameForUnknownTarget(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "pingpong_ping_latency_ms",
+		Help: "test",
+	}, []string{"target"})
+	reg.MustRegister(gauge)
+	gauge.WithLabelValues("9.9.9.9").Set(30.0)
+
+	b := NewBroadcaster(reg, time.Second, nil)
+	b.Hostnames = map[string]string{"1.1.1.1": "one.one.one.one"}
+
+	snap, err := b.gatherSnapshot()
+	if err != nil {
+		t.Fatalf("gatherSnapshot: %v", err)
+	}
+
+	vals, ok := snap.Metrics["pingpong_ping_latency_ms"]
+	if !ok {
+		t.Fatal("missing pingpong_ping_latency_ms in snapshot")
+	}
+	if len(vals) != 1 {
+		t.Fatalf("expected 1 value, got %d", len(vals))
+	}
+	if _, exists := vals[0].Labels["hostname"]; exists {
+		t.Error("expected no hostname label for unknown target, but it was present")
+	}
+}
+
 func TestBroadcaster_RecordHistoryDedup(t *testing.T) {
 	db := openTestDB(t)
 	store, err := NewHistoryStore(db)

@@ -167,8 +167,8 @@ func (q *Queue) DeleteAllAlerts() error {
 }
 
 type cooldownEntry struct {
-	CooldownKey string     `db:"cooldown_key"`
-	LastSent    *time.Time `db:"last_sent"`
+	CooldownKey string  `db:"cooldown_key"`
+	LastSent    *string `db:"last_sent"`
 }
 
 // AllCooldowns returns the most recent sent_at for each distinct cooldown_key.
@@ -182,9 +182,18 @@ func (q *Queue) AllCooldowns() (map[string]time.Time, error) {
 	}
 	result := make(map[string]time.Time, len(entries))
 	for _, e := range entries {
-		if e.LastSent != nil {
-			result[e.CooldownKey] = *e.LastSent
+		if e.LastSent == nil {
+			continue
 		}
+		t, err := time.Parse("2006-01-02 15:04:05", *e.LastSent)
+		if err != nil {
+			// Try RFC3339 as a fallback.
+			t, err = time.Parse(time.RFC3339, *e.LastSent)
+			if err != nil {
+				continue
+			}
+		}
+		result[e.CooldownKey] = t
 	}
 	return result, nil
 }

@@ -165,3 +165,80 @@ func TestHistoryStore_LoadAll(t *testing.T) {
 		t.Errorf("expected 1 point for download_speed, got %d", len(dlData[""]))
 	}
 }
+
+func TestHistoryStore_LoadAllWithLimit(t *testing.T) {
+	db := openTestDB(t)
+	store, err := NewHistoryStore(db)
+	if err != nil {
+		t.Fatalf("NewHistoryStore: %v", err)
+	}
+
+	// Record 10 points for one series
+	for i := 0; i < 10; i++ {
+		if err := store.Record("ping_latency", "1.1.1.1", float64(i)); err != nil {
+			t.Fatalf("Record: %v", err)
+		}
+	}
+
+	all, err := store.LoadAll(3)
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+
+	pingData, ok := all["ping_latency"]
+	if !ok {
+		t.Fatal("missing ping_latency key")
+	}
+	points := pingData["1.1.1.1"]
+	if len(points) != 3 {
+		t.Fatalf("expected 3 points with limit=3, got %d", len(points))
+	}
+
+	// Should be the newest 3 (values 7, 8, 9) in oldest-first order
+	if points[0].Value != 7 {
+		t.Errorf("first point = %v, want 7", points[0].Value)
+	}
+	if points[2].Value != 9 {
+		t.Errorf("last point = %v, want 9", points[2].Value)
+	}
+}
+
+func TestHistoryStore_PruneNonExistent(t *testing.T) {
+	db := openTestDB(t)
+	store, err := NewHistoryStore(db)
+	if err != nil {
+		t.Fatalf("NewHistoryStore: %v", err)
+	}
+
+	// Prune a metric/target that has no data; should not error
+	if err := store.Prune("nonexistent_metric", "no_target", 3); err != nil {
+		t.Fatalf("Prune on non-existent data returned error: %v", err)
+	}
+}
+
+func TestHistoryStore_NewHistoryStoreIdempotent(t *testing.T) {
+	db := openTestDB(t)
+
+	store1, err := NewHistoryStore(db)
+	if err != nil {
+		t.Fatalf("first NewHistoryStore: %v", err)
+	}
+
+	store2, err := NewHistoryStore(db)
+	if err != nil {
+		t.Fatalf("second NewHistoryStore: %v", err)
+	}
+
+	// Verify both stores work by writing with one and reading with the other
+	if err := store1.Record("test_metric", "target", 42.0); err != nil {
+		t.Fatalf("Record via store1: %v", err)
+	}
+
+	points, err := store2.Load("test_metric", "target", 60)
+	if err != nil {
+		t.Fatalf("Load via store2: %v", err)
+	}
+	if len(points) != 1 || points[0].Value != 42.0 {
+		t.Errorf("expected 1 point with value 42.0, got %v", points)
+	}
+}
