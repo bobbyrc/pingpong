@@ -62,9 +62,59 @@ func TestReadEnvFile_BlankLinesAndValuesWithEquals(t *testing.T) {
 }
 
 func TestReadEnvFile_NotFound(t *testing.T) {
-	_, err := ReadEnvFile("/nonexistent/.env")
+	env, err := ReadEnvFile(filepath.Join(t.TempDir(), ".env"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(env) != 0 {
+		t.Fatalf("expected empty map, got %v", env)
+	}
+}
+
+func TestReadEnvFile_ParentDirMissing(t *testing.T) {
+	_, err := ReadEnvFile(filepath.Join(t.TempDir(), "no-such-dir", ".env"))
 	if err == nil {
-		t.Fatal("expected error for missing file")
+		t.Fatal("expected error when parent directory does not exist")
+	}
+}
+
+func TestWriteEnvFile_ParentDirMissing(t *testing.T) {
+	err := WriteEnvFile(filepath.Join(t.TempDir(), "no-such-dir", ".env"), map[string]string{"A": "1"})
+	if err == nil {
+		t.Fatal("expected error when parent directory does not exist")
+	}
+}
+
+func TestWriteEnvFile_CreatesFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	updates := map[string]string{
+		"FOO": "bar",
+		"BAZ": "qux",
+	}
+	if err := WriteEnvFile(path, updates); err != nil {
+		t.Fatalf("WriteEnvFile: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := string(data)
+	if !strings.Contains(result, "FOO=bar") {
+		t.Error("FOO not written")
+	}
+	if !strings.Contains(result, "BAZ=qux") {
+		t.Error("BAZ not written")
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("file permissions = %o, want 0600", perm)
 	}
 }
 
