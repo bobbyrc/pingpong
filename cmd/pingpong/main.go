@@ -118,6 +118,7 @@ func main() {
 
 	var downSince time.Time
 	flushCh := make(chan struct{}, 1)
+	connState := engine.ConnState()
 
 	// Ping loop
 	wg.Add(1)
@@ -143,8 +144,6 @@ func main() {
 					break
 				}
 			}
-
-			connState := engine.ConnState()
 			if allDown && !connState.IsDown() {
 				connState.SetDown(true)
 				downSince = time.Now()
