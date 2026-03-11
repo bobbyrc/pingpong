@@ -6,9 +6,9 @@ import (
 )
 
 func TestConnectionState_ZeroValueIsNotDown(t *testing.T) {
-	cs := NewConnectionState()
+	var cs ConnectionState
 	if cs.IsDown() {
-		t.Fatal("expected new ConnectionState to not be down")
+		t.Fatal("expected zero-value ConnectionState to not be down")
 	}
 }
 

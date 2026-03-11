@@ -415,9 +415,9 @@ func TestProcessQueue_ProceedsWhenConnectionUp(t *testing.T) {
 		{Target: "1.1.1.1", PacketLoss: 50.0},
 	})
 
-	// Connection is up (default). ProcessQueue will attempt send
-	// (which fails since dummyApprise points nowhere real), but
-	// the point is it DOES attempt — retry count increments.
+	// Connection is up (default). ProcessQueue will attempt a send,
+	// which deterministically fails via failingApprise(t) (httptest server returns 500),
+	// but the point is it DOES attempt — retry count increments.
 	engine.ProcessQueue()
 
 	pending, _ := q.Pending()
