@@ -43,8 +43,8 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.PingTargets[0] != "1.1.1.1" {
 		t.Errorf("expected first target 1.1.1.1, got %s", cfg.PingTargets[0])
 	}
-	if cfg.PingCount != 10 {
-		t.Fatalf("expected ping count 10, got %d", cfg.PingCount)
+	if cfg.PingCount != 25 {
+		t.Fatalf("expected ping count 25, got %d", cfg.PingCount)
 	}
 	if cfg.PingInterval != 60*time.Second {
 		t.Fatalf("expected ping interval 60s, got %v", cfg.PingInterval)
@@ -153,8 +153,8 @@ func TestLoadSpeedtestServerID(t *testing.T) {
 func TestLoadInvalidInt(t *testing.T) {
 	t.Setenv("PINGPONG_PING_COUNT", "abc")
 	cfg := Load()
-	if cfg.PingCount != 10 {
-		t.Fatalf("expected ping count to fall back to default 10, got %d", cfg.PingCount)
+	if cfg.PingCount != 25 {
+		t.Fatalf("expected ping count to fall back to default 25, got %d", cfg.PingCount)
 	}
 }
 

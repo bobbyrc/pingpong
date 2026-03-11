@@ -40,7 +40,7 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		PingTargets:              getStringSlice("PINGPONG_PING_TARGETS", []string{"1.1.1.1", "8.8.8.8", "208.67.222.222"}),
-		PingCount:                getInt("PINGPONG_PING_COUNT", 10),
+		PingCount:                getInt("PINGPONG_PING_COUNT", 25),
 		DNSTargets:               loadDNSTargets(),
 		DNSServers:               loadDNSServers(),
 		TracerouteTarget:         getString("PINGPONG_TRACEROUTE_TARGET", "1.1.1.1"),

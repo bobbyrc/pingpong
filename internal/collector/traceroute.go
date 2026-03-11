@@ -26,6 +26,7 @@ var (
 	hopLineRe = regexp.MustCompile(`^\s*(\d+)\s+(.+)$`)
 	latencyRe = regexp.MustCompile(`([\d.]+)\s*ms`)
 	addressRe = regexp.MustCompile(`\(([\d.]+)\)`)
+	bareIPRe  = regexp.MustCompile(`^([\d]+\.[\d]+\.[\d]+\.[\d]+)\s`)
 )
 
 func parseTracerouteOutput(target, output string) TracerouteResult {
@@ -52,6 +53,8 @@ func parseTracerouteOutput(target, output string) TracerouteResult {
 		addrMatch := addressRe.FindStringSubmatch(rest)
 		if addrMatch != nil {
 			hop.Address = addrMatch[1]
+		} else if bareMatch := bareIPRe.FindStringSubmatch(rest); bareMatch != nil {
+			hop.Address = bareMatch[1]
 		}
 
 		latMatches := latencyRe.FindAllStringSubmatch(rest, -1)
