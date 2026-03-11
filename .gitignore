@@ -39,3 +39,4 @@ go.work.sum
 
 docs/plans/
 .worktrees/
+.superpowers/
