@@ -1,6 +1,8 @@
 package alerter
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
 	"time"
@@ -13,6 +15,18 @@ import (
 // fireAlert skips enqueuing when apprise is nil, so tests that
 // expect alerts to be enqueued need a non-nil client.
 var dummyApprise = NewAppriseClient("http://localhost", "test://")
+
+// failingApprise returns an AppriseClient backed by an httptest server that
+// always responds 500. Use this instead of dummyApprise when the test actually
+// calls ProcessQueue/Send so failure is deterministic with no real network I/O.
+func failingApprise(t *testing.T) *AppriseClient {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	return NewAppriseClient(srv.URL, "test://")
+}
 
 func newTestEngine(t *testing.T, apprise *AppriseClient, cfg *config.Config) (*Engine, *Queue) {
 	t.Helper()
@@ -353,6 +367,102 @@ func TestEvaluatePing_MultiTargetCooldownIsolation(t *testing.T) {
 	pending, _ = q.Pending()
 	if len(pending) != 2 {
 		t.Fatalf("expected still 2 alerts (target A in cooldown), got %d", len(pending))
+	}
+}
+
+func TestProcessQueue_SkipsWhenConnectionDown(t *testing.T) {
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
+		AlertPacketLossThreshold: 10,
+		AlertCooldown:            1 * time.Second,
+	})
+
+	// Enqueue an alert.
+	engine.EvaluatePing([]collector.PingResult{
+		{Target: "1.1.1.1", PacketLoss: 50.0},
+	})
+
+	pending, _ := q.Pending()
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 pending alert, got %d", len(pending))
+	}
+
+	// Mark connection as down.
+	engine.connState.SetDown(true)
+
+	// ProcessQueue should short-circuit — alert stays pending.
+	engine.ProcessQueue()
+
+	pending, _ = q.Pending()
+	if len(pending) != 1 {
+		t.Fatalf("expected alert to remain pending when connection is down, got %d", len(pending))
+	}
+	// Verify retry count was NOT incremented.
+	if pending[0].RetryCount != 0 {
+		t.Fatalf("expected retry count 0 (skipped), got %d", pending[0].RetryCount)
+	}
+}
+
+func TestProcessQueue_ProceedsWhenConnectionUp(t *testing.T) {
+	apprise := failingApprise(t)
+	engine, q := newTestEngine(t, apprise, &config.Config{
+		AlertPacketLossThreshold: 10,
+		AlertCooldown:            1 * time.Second,
+		AlertMaxRetries:          5,
+	})
+
+	// Enqueue an alert.
+	engine.EvaluatePing([]collector.PingResult{
+		{Target: "1.1.1.1", PacketLoss: 50.0},
+	})
+
+	// Connection is up (default). ProcessQueue will attempt a send,
+	// which deterministically fails via failingApprise(t) (httptest server returns 500),
+	// but the point is it DOES attempt — retry count increments.
+	engine.ProcessQueue()
+
+	pending, _ := q.Pending()
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 pending alert, got %d", len(pending))
+	}
+	if pending[0].RetryCount != 1 {
+		t.Fatalf("expected retry count 1 (attempted), got %d", pending[0].RetryCount)
+	}
+}
+
+func TestProcessQueue_NilConnStateAlwaysProceeds(t *testing.T) {
+	// Build engine without ConnectionState (simulates old behavior / tests).
+	dir := t.TempDir()
+	db, err := OpenDB(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("OpenDB: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	q, err := NewQueue(db)
+	if err != nil {
+		t.Fatalf("NewQueue: %v", err)
+	}
+
+	engine := NewEngine(q, failingApprise(t), &config.Config{
+		AlertPacketLossThreshold: 10,
+		AlertCooldown:            1 * time.Second,
+		AlertMaxRetries:          5,
+	})
+	// Explicitly set connState to nil to verify nil-safety.
+	engine.connState = nil
+
+	engine.EvaluatePing([]collector.PingResult{
+		{Target: "1.1.1.1", PacketLoss: 50.0},
+	})
+
+	// Should proceed (attempt send) even with nil connState.
+	engine.ProcessQueue()
+
+	pending, _ := q.Pending()
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 pending alert, got %d", len(pending))
+	}
+	if pending[0].RetryCount != 1 {
+		t.Fatalf("expected retry count 1 (attempted), got %d", pending[0].RetryCount)
 	}
 }
 

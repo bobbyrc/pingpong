@@ -11,9 +11,10 @@ import (
 )
 
 type Engine struct {
-	queue   *Queue
-	apprise *AppriseClient
-	cfg     *config.Config
+	queue     *Queue
+	apprise   *AppriseClient
+	cfg       *config.Config
+	connState *ConnectionState
 
 	mu            sync.Mutex
 	lastAlertTime map[string]time.Time
@@ -24,6 +25,7 @@ func NewEngine(queue *Queue, apprise *AppriseClient, cfg *config.Config) *Engine
 		queue:         queue,
 		apprise:       apprise,
 		cfg:           cfg,
+		connState:     NewConnectionState(),
 		lastAlertTime: make(map[string]time.Time),
 	}
 }
@@ -41,6 +43,11 @@ func (e *Engine) SeedCooldowns() {
 	for key, t := range cooldowns {
 		e.lastAlertTime[key] = t
 	}
+}
+
+// ConnState returns the engine's connection state tracker.
+func (e *Engine) ConnState() *ConnectionState {
+	return e.connState
 }
 
 func (e *Engine) EvaluatePing(results []collector.PingResult) {
@@ -125,6 +132,11 @@ func (e *Engine) fireAlert(cooldownKey, alertType, title, body string) {
 
 func (e *Engine) ProcessQueue() {
 	if e.apprise == nil {
+		return
+	}
+
+	if e.connState != nil && e.connState.IsDown() {
+		slog.Debug("skipping alert retry, connection is down")
 		return
 	}
 
