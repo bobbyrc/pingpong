@@ -202,7 +202,7 @@ All configuration is done through environment variables in the `.env` file. Copy
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PINGPONG_PING_TARGETS` | Comma-separated list of IPs or hostnames to ping | `1.1.1.1,8.8.8.8,208.67.222.222` |
-| `PINGPONG_PING_COUNT` | Number of ICMP packets per ping cycle | `10` |
+| `PINGPONG_PING_COUNT` | Number of ICMP packets per ping cycle | `25` |
 | `PINGPONG_DNS_TARGETS` | Comma-separated domains to resolve | `google.com,cloudflare.com,github.com` |
 | `PINGPONG_DNS_SERVERS` | Comma-separated DNS servers to test (empty = system resolver only) | _(empty)_ |
 | `PINGPONG_TRACEROUTE_TARGET` | Host to traceroute | `1.1.1.1` |

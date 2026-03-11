@@ -100,7 +100,8 @@ func (p *PingCollector) ping(ctx context.Context, target string) (PingResult, er
 	}
 
 	pinger.Count = p.count
-	pinger.Timeout = time.Duration(p.count) * 2 * time.Second
+	pinger.Interval = 200 * time.Millisecond
+	pinger.Timeout = time.Duration(p.count)*pinger.Interval + 5*time.Second
 	pinger.SetPrivileged(true)
 
 	err = pinger.RunWithContext(ctx)
