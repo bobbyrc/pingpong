@@ -116,11 +116,8 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	var (
-		connMu    sync.Mutex
-		connDown  bool
-		downSince time.Time
-	)
+	var downSince time.Time
+	flushCh := make(chan struct{}, 1)
 
 	// Ping loop
 	wg.Add(1)
@@ -147,26 +144,30 @@ func main() {
 				}
 			}
 
-			connMu.Lock()
-			if allDown && !connDown {
-				connDown = true
+			connState := engine.ConnState()
+			if allDown && !connState.IsDown() {
+				connState.SetDown(true)
 				downSince = time.Now()
 				m.ConnectionUp.Set(0)
 				m.ConnectionFlaps.Inc()
 				slog.Warn("connection detected as DOWN")
-			} else if !allDown && connDown {
+			} else if !allDown && connState.IsDown() {
 				downtime := time.Since(downSince)
 				m.DowntimeTotal.Add(downtime.Seconds())
-				connDown = false
+				connState.SetDown(false)
 				m.ConnectionUp.Set(1)
 				m.ConnectionFlaps.Inc()
 				slog.Info("connection restored", "downtime", downtime.Round(time.Second))
+				select {
+				case flushCh <- struct{}{}:
+				default:
+				}
 			} else if !allDown {
 				m.ConnectionUp.Set(1)
 			}
-			isDown := connDown
+
+			isDown := connState.IsDown()
 			ds := downSince
-			connMu.Unlock()
 
 			engine.EvaluatePing(results)
 			if isDown {
@@ -302,6 +303,8 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				engine.ProcessQueue()
+			case <-flushCh:
 				engine.ProcessQueue()
 			}
 		}
