@@ -60,10 +60,10 @@ scrape_configs:
 Import the pre-built dashboard into your Grafana:
 
 1. Open Grafana → **Dashboards** → **Import**
-2. Upload `grafana/dashboards/pingpong.json` from this repo
+2. Enter dashboard ID **`24995`** (or upload `grafana/dashboards/pingpong.json` from this repo)
 3. Click **Import**
 
-The dashboard has a datasource dropdown at the top — select your Prometheus instance there. All panels update automatically.
+The dashboard is also available on [grafana.com](https://grafana.com/grafana/dashboards/24995). It has a datasource dropdown at the top — select your Prometheus instance there. All panels update automatically.
 
 ### Docker Network Integration
 
