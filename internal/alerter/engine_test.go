@@ -1,6 +1,8 @@
 package alerter
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
 	"time"
@@ -13,6 +15,18 @@ import (
 // fireAlert skips enqueuing when apprise is nil, so tests that
 // expect alerts to be enqueued need a non-nil client.
 var dummyApprise = NewAppriseClient("http://localhost", "test://")
+
+// failingApprise returns an AppriseClient backed by an httptest server that
+// always responds 500. Use this instead of dummyApprise when the test actually
+// calls ProcessQueue/Send so failure is deterministic with no real network I/O.
+func failingApprise(t *testing.T) *AppriseClient {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	return NewAppriseClient(srv.URL, "test://")
+}
 
 func newTestEngine(t *testing.T, apprise *AppriseClient, cfg *config.Config) (*Engine, *Queue) {
 	t.Helper()
@@ -389,7 +403,8 @@ func TestProcessQueue_SkipsWhenConnectionDown(t *testing.T) {
 }
 
 func TestProcessQueue_ProceedsWhenConnectionUp(t *testing.T) {
-	engine, q := newTestEngine(t, dummyApprise, &config.Config{
+	apprise := failingApprise(t)
+	engine, q := newTestEngine(t, apprise, &config.Config{
 		AlertPacketLossThreshold: 10,
 		AlertCooldown:            1 * time.Second,
 		AlertMaxRetries:          5,
@@ -427,7 +442,7 @@ func TestProcessQueue_NilConnStateAlwaysProceeds(t *testing.T) {
 		t.Fatalf("NewQueue: %v", err)
 	}
 
-	engine := NewEngine(q, dummyApprise, &config.Config{
+	engine := NewEngine(q, failingApprise(t), &config.Config{
 		AlertPacketLossThreshold: 10,
 		AlertCooldown:            1 * time.Second,
 		AlertMaxRetries:          5,

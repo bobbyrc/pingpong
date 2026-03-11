@@ -2,11 +2,11 @@
 
 ## Problem
 
-When the internet connection is down, `ProcessQueue()` runs every 30 seconds and attempts to send all pending alerts via Apprise. Every attempt fails, incrementing `retry_count`. With a max of 100 retries at 30-second intervals, alerts can hit `failed_permanent` in ~50 minutes — potentially before the connection recovers. This wastes retries on attempts we know will fail.
+When the internet connection is down, `ProcessQueue()` runs on a configurable interval (default: 60s) and attempts to send all pending alerts via Apprise. Every attempt fails, incrementing `retry_count`. With default max retries of 30, alerts can hit `failed_permanent` in ~30 minutes — potentially before the connection recovers. This wastes retries on attempts we know will fail.
 
 ## Decision
 
-Introduce a shared `ConnectionState` struct that lets `ProcessQueue()` skip send attempts while the connection is down. Alerts are still enqueued during outages (preserving a complete threshold-crossing history), but retries are paused until the connection is restored. On recovery, pending alerts are flushed immediately rather than waiting for the next 30-second tick.
+Introduce a shared `ConnectionState` struct that lets `ProcessQueue()` skip send attempts while the connection is down. Alerts are still enqueued during outages (preserving a complete threshold-crossing history), but retries are paused until the connection is restored. On recovery, pending alerts are flushed immediately rather than waiting for the next retry tick.
 
 ## Design
 
@@ -29,22 +29,22 @@ Lives in the `alerter` package since that's where it's consumed. The zero value 
 
 ### Changes to `Engine`
 
-- Add `connState *ConnectionState` field.
-- `NewEngine()` accepts `*ConnectionState` (nil-safe: if nil, retries always proceed, preserving current behavior for existing tests).
+- Add `connState *ConnectionState` field, owned by the engine.
+- `NewEngine()` constructs its own `ConnectionState` instance and stores it in `connState`. Expose it via a `ConnState() *ConnectionState` accessor so that `main.go` can observe and update connection status.
 - `ProcessQueue()` adds a guard at the top: if `connState != nil && connState.IsDown()`, log at debug level and return early. Retry counts are not incremented.
 
 ### Changes to `main.go`
 
-- Create `connState := alerter.NewConnectionState()` and pass it to `NewEngine()`.
+- Obtain `connState := engine.ConnState()` from the engine instance.
 - In the ping loop state machine, replace the local `connDown` bool writes with `connState.SetDown(true/false)`. Keep `downSince` as a local variable (only the ping loop uses it). Read `connState.IsDown()` where `connDown` was previously read under the mutex.
 - Remove the local `connMu` and `connDown` variables (replaced by `connState`).
-- On the UP transition (connection restored), call `go engine.ProcessQueue()` to immediately flush pending alerts.
+- On the UP transition (connection restored), signal the retry-loop goroutine via a buffered `flushCh` channel so it wakes immediately and calls `ProcessQueue()` without waiting for the next tick.
 
 ### What doesn't change
 
 - Alert enqueueing during outages — full history preserved.
 - Retry counts are not incremented while connection is down — alerts won't age out.
-- The 30-second retry ticker keeps running (no-ops while down).
+- The retry ticker keeps running (no-ops while down).
 - All existing tests pass without modification (nil `connState` = current behavior).
 
 ### Test plan
