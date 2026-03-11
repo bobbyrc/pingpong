@@ -96,3 +96,26 @@ func TestParseTracerouteOutput_NumericMode(t *testing.T) {
 		t.Fatalf("expected hop 4 latency ~12.456, got %f", result.Hops[3].LatencyMs)
 	}
 }
+
+func TestParseTracerouteOutput_PartialTimeout(t *testing.T) {
+	output := `traceroute to 1.1.1.1 (1.1.1.1), 30 hops max, 60 byte packets
+ 1  192.168.1.1  1.234 ms  1.345 ms  1.456 ms
+ 2  * 10.0.0.1  5.678 ms  5.890 ms
+ 3  * * *
+ 4  1.1.1.1  12.345 ms  * 12.567 ms`
+
+	result := parseTracerouteOutput("1.1.1.1", output)
+
+	if result.HopCount != 4 {
+		t.Fatalf("expected 4 hops, got %d", result.HopCount)
+	}
+	if result.Hops[1].Address != "10.0.0.1" {
+		t.Fatalf("expected address 10.0.0.1 for partial-timeout hop, got %q", result.Hops[1].Address)
+	}
+	if result.Hops[1].LatencyMs < 5.6 || result.Hops[1].LatencyMs > 5.9 {
+		t.Fatalf("expected hop 2 latency ~5.784, got %f", result.Hops[1].LatencyMs)
+	}
+	if result.Hops[3].Address != "1.1.1.1" {
+		t.Fatalf("expected address 1.1.1.1, got %q", result.Hops[3].Address)
+	}
+}

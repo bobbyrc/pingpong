@@ -26,7 +26,7 @@ var (
 	hopLineRe = regexp.MustCompile(`^\s*(\d+)\s+(.+)$`)
 	latencyRe = regexp.MustCompile(`([\d.]+)\s*ms`)
 	addressRe = regexp.MustCompile(`\(([\d.]+)\)`)
-	bareIPRe  = regexp.MustCompile(`^([\d]+\.[\d]+\.[\d]+\.[\d]+)\s`)
+	bareIPRe  = regexp.MustCompile(`(?:^|\s)([\d]+\.[\d]+\.[\d]+\.[\d]+)\s`)
 )
 
 func parseTracerouteOutput(target, output string) TracerouteResult {
