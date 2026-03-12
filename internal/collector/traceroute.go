@@ -93,6 +93,21 @@ func (tr *TracerouteCollector) Collect(ctx context.Context) (TracerouteResult, e
 	}
 
 	result := parseTracerouteOutput(tr.target, string(output))
-	slog.Info("traceroute complete", "target", tr.target, "hops", result.HopCount)
+
+	var timeouts int
+	for _, hop := range result.Hops {
+		if hop.Address == "*" {
+			timeouts++
+		}
+	}
+	logArgs := []any{
+		"target", tr.target,
+		"hops", result.HopCount,
+	}
+	if timeouts > 0 {
+		logArgs = append(logArgs, "timeout_hops", timeouts)
+	}
+	slog.Info("traceroute complete", logArgs...)
+
 	return result, nil
 }

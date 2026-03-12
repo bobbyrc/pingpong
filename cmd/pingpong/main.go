@@ -28,14 +28,26 @@ func main() {
 
 	cfg := config.Load()
 	slog.Info("pingpong starting",
+		"listen_addr", cfg.ListenAddr,
+		"data_dir", cfg.DataDir,
 		"ping_targets", cfg.PingTargets,
+		"ping_count", cfg.PingCount,
 		"ping_interval", cfg.PingInterval,
 		"dns_targets", cfg.DNSTargets,
 		"dns_servers", cfg.DNSServers,
 		"dns_interval", cfg.DNSInterval,
 		"speedtest_interval", cfg.SpeedtestInterval,
 		"speedtest_server_id", cfg.SpeedtestServerID,
+		"traceroute_target", cfg.TracerouteTarget,
 		"traceroute_interval", cfg.TracerouteInterval,
+	)
+	slog.Info("alert thresholds",
+		"packet_loss_pct", cfg.AlertPacketLossThreshold,
+		"latency_ms", cfg.AlertPingThreshold,
+		"jitter_ms", cfg.AlertJitterThreshold,
+		"download_mbps", cfg.AlertSpeedThreshold,
+		"downtime", cfg.AlertDowntimeThreshold,
+		"cooldown", cfg.AlertCooldown,
 	)
 
 	reg := prometheus.NewRegistry()

@@ -110,6 +110,16 @@ func (p *PingCollector) ping(ctx context.Context, target string) (PingResult, er
 	}
 
 	stats := pinger.Statistics()
+	lost := stats.PacketsSent - stats.PacketsRecv
+	if lost > 0 {
+		slog.Warn("packet loss detected",
+			"target", target,
+			"sent", stats.PacketsSent,
+			"recv", stats.PacketsRecv,
+			"lost", lost,
+			"loss_pct", fmt.Sprintf("%.1f%%", float64(lost)/float64(stats.PacketsSent)*100),
+		)
+	}
 	return calculatePingResult(
 		target,
 		stats.Rtts,
