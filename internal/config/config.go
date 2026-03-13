@@ -1,6 +1,8 @@
 package config
 
 import (
+	"bufio"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -37,7 +39,44 @@ type Config struct {
 	EnvFile    string
 }
 
+// fileEnv holds values parsed from the .env file. Written once by Load()
+// at startup; not safe for concurrent use (Load is only called from main).
+var fileEnv map[string]string
+
+func loadEnvFile(path string) map[string]string {
+	f, err := os.Open(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			slog.Warn("could not open env file", "path", path, "error", err)
+		}
+		return make(map[string]string)
+	}
+	defer f.Close()
+
+	env := make(map[string]string)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if key, value, ok := strings.Cut(line, "="); ok {
+			env[key] = value
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		slog.Warn("error reading env file", "path", path, "error", err)
+	}
+	return env
+}
+
 func Load() *Config {
+	envFile := os.Getenv("PINGPONG_ENV_FILE")
+	if envFile == "" {
+		envFile = ".env"
+	}
+	fileEnv = loadEnvFile(envFile)
+
 	return &Config{
 		PingTargets:              getStringSlice("PINGPONG_PING_TARGETS", []string{"1.1.1.1", "8.8.8.8", "208.67.222.222"}),
 		PingCount:                getInt("PINGPONG_PING_COUNT", 25),
@@ -61,7 +100,7 @@ func Load() *Config {
 		AppriseURLs:              getString("PINGPONG_APPRISE_URLS", ""),
 		ListenAddr:               getString("PINGPONG_LISTEN_ADDR", ":4040"),
 		DataDir:                  getString("PINGPONG_DATA_DIR", "/data"),
-		EnvFile:                  getString("PINGPONG_ENV_FILE", ".env"),
+		EnvFile:                  envFile,
 	}
 }
 
@@ -89,11 +128,19 @@ func getString(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
+	if v, ok := fileEnv[key]; ok && v != "" {
+		return v
+	}
 	return fallback
 }
 
 func getInt(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	if v, ok := fileEnv[key]; ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			return n
 		}
@@ -107,11 +154,21 @@ func getFloat(key string, fallback float64) float64 {
 			return f
 		}
 	}
+	if v, ok := fileEnv[key]; ok && v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+	}
 	return fallback
 }
 
 func getDuration(key string, fallback time.Duration) time.Duration {
 	if v := os.Getenv(key); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
+	}
+	if v, ok := fileEnv[key]; ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			return d
 		}
@@ -132,6 +189,18 @@ func getStringSlice(key string, fallback []string) []string {
 			return fallback
 		}
 		return result
+	}
+	if v, ok := fileEnv[key]; ok && v != "" {
+		parts := strings.Split(v, ",")
+		result := make([]string, 0, len(parts))
+		for _, p := range parts {
+			if trimmed := strings.TrimSpace(p); trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		if len(result) > 0 {
+			return result
+		}
 	}
 	return fallback
 }
