@@ -9,6 +9,7 @@ services:
       - .env
     volumes:
       - pingpong-data:/data
+      - ./.env:/app/.env
     ports:
       - "4040:4040"
     expose:
