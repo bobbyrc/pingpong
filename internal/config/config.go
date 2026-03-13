@@ -39,6 +39,8 @@ type Config struct {
 	EnvFile    string
 }
 
+// fileEnv holds values parsed from the .env file. Written once by Load()
+// at startup; not safe for concurrent use (Load is only called from main).
 var fileEnv map[string]string
 
 func loadEnvFile(path string) map[string]string {
