@@ -1,12 +1,15 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
 
 func TestLoadDefaults(t *testing.T) {
 	for _, key := range []string{
+		"PINGPONG_ENV_FILE",
 		"PINGPONG_PING_TARGETS",
 		"PINGPONG_PING_COUNT",
 		"PINGPONG_PING_INTERVAL",
@@ -198,5 +201,67 @@ func TestLoadAlertMaxRetries(t *testing.T) {
 	cfg := Load()
 	if cfg.AlertMaxRetries != 5 {
 		t.Fatalf("expected alert max retries 5, got %d", cfg.AlertMaxRetries)
+	}
+}
+
+func TestLoadFromFile(t *testing.T) {
+	t.Setenv("PINGPONG_PING_TARGETS", "")
+	t.Setenv("PINGPONG_PING_COUNT", "")
+	t.Setenv("PINGPONG_PING_INTERVAL", "")
+	t.Setenv("PINGPONG_LISTEN_ADDR", "")
+
+	tmpDir := t.TempDir()
+	envPath := filepath.Join(tmpDir, ".env")
+	err := os.WriteFile(envPath, []byte("PINGPONG_PING_TARGETS=9.9.9.9\nPINGPONG_PING_COUNT=3\nPINGPONG_PING_INTERVAL=45s\nPINGPONG_LISTEN_ADDR=:8080\n"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PINGPONG_ENV_FILE", envPath)
+
+	cfg := Load()
+
+	if len(cfg.PingTargets) != 1 || cfg.PingTargets[0] != "9.9.9.9" {
+		t.Fatalf("expected ping targets [9.9.9.9], got %v", cfg.PingTargets)
+	}
+	if cfg.PingCount != 3 {
+		t.Fatalf("expected ping count 3, got %d", cfg.PingCount)
+	}
+	if cfg.PingInterval != 45*time.Second {
+		t.Fatalf("expected ping interval 45s, got %v", cfg.PingInterval)
+	}
+	if cfg.ListenAddr != ":8080" {
+		t.Fatalf("expected listen addr :8080, got %s", cfg.ListenAddr)
+	}
+}
+
+func TestLoadEnvOverridesFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	envPath := filepath.Join(tmpDir, ".env")
+	err := os.WriteFile(envPath, []byte("PINGPONG_PING_COUNT=3\nPINGPONG_LISTEN_ADDR=:8080\n"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PINGPONG_ENV_FILE", envPath)
+	t.Setenv("PINGPONG_PING_COUNT", "99")
+	t.Setenv("PINGPONG_LISTEN_ADDR", ":5555")
+
+	cfg := Load()
+
+	if cfg.PingCount != 99 {
+		t.Fatalf("expected ping count 99 (env override), got %d", cfg.PingCount)
+	}
+	if cfg.ListenAddr != ":5555" {
+		t.Fatalf("expected listen addr :5555 (env override), got %s", cfg.ListenAddr)
+	}
+}
+
+func TestLoadMissingFileUsesDefaults(t *testing.T) {
+	t.Setenv("PINGPONG_ENV_FILE", "/tmp/nonexistent-pingpong-test-env-file")
+	t.Setenv("PINGPONG_PING_COUNT", "")
+
+	cfg := Load()
+
+	if cfg.PingCount != 25 {
+		t.Fatalf("expected ping count 25 (default), got %d", cfg.PingCount)
 	}
 }
