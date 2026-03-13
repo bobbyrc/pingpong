@@ -44,6 +44,9 @@ var fileEnv map[string]string
 func loadEnvFile(path string) map[string]string {
 	f, err := os.Open(path)
 	if err != nil {
+		if !os.IsNotExist(err) {
+			slog.Warn("could not open env file", "path", path, "error", err)
+		}
 		return make(map[string]string)
 	}
 	defer f.Close()
@@ -95,7 +98,7 @@ func Load() *Config {
 		AppriseURLs:              getString("PINGPONG_APPRISE_URLS", ""),
 		ListenAddr:               getString("PINGPONG_LISTEN_ADDR", ":4040"),
 		DataDir:                  getString("PINGPONG_DATA_DIR", "/data"),
-		EnvFile:                  getString("PINGPONG_ENV_FILE", ".env"),
+		EnvFile:                  envFile,
 	}
 }
 

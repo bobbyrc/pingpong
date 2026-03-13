@@ -7,9 +7,14 @@ import (
 	"time"
 )
 
+// TestMain ensures no test accidentally reads a local .env file.
+func TestMain(m *testing.M) {
+	os.Setenv("PINGPONG_ENV_FILE", filepath.Join(os.TempDir(), "pingpong-test-no-such-env"))
+	os.Exit(m.Run())
+}
+
 func TestLoadDefaults(t *testing.T) {
 	for _, key := range []string{
-		"PINGPONG_ENV_FILE",
 		"PINGPONG_PING_TARGETS",
 		"PINGPONG_PING_COUNT",
 		"PINGPONG_PING_INTERVAL",
@@ -256,7 +261,7 @@ func TestLoadEnvOverridesFile(t *testing.T) {
 }
 
 func TestLoadMissingFileUsesDefaults(t *testing.T) {
-	t.Setenv("PINGPONG_ENV_FILE", "/tmp/nonexistent-pingpong-test-env-file")
+	t.Setenv("PINGPONG_ENV_FILE", filepath.Join(t.TempDir(), "nonexistent-env"))
 	t.Setenv("PINGPONG_PING_COUNT", "")
 
 	cfg := Load()
