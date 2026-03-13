@@ -194,7 +194,14 @@ Derived from ping results (not a separate collector):
 
 All configuration is done through environment variables in the `.env` file. Copy `.env.example` to `.env` to get started — sensible defaults are provided for everything.
 
-> **Note:** After changing `.env` values, restart the PingPong container for changes to take effect: `docker compose restart pingpong`. You can also edit configuration live from the built-in config editor at [http://localhost:4040/config](http://localhost:4040/config), though a restart is still required.
+You can edit settings in two ways:
+
+1. **Edit `.env` directly** on the host, then restart: `docker compose restart pingpong`
+2. **Use the built-in config editor** at [http://localhost:4040/config](http://localhost:4040/config), then restart: `docker compose restart pingpong`
+
+Both methods write to the same file. The default `docker-compose.yml` volume-mounts your host `.env` into the container at `/app/.env`, so the config editor's changes are preserved across container restarts.
+
+> **Note:** A container restart is always required after changing configuration. If you've customized your Docker Compose setup and removed the `.env` volume mount, the config editor will write to a file inside the container that is lost on restart — see [Troubleshooting](#troubleshooting).
 
 <details>
 <summary><strong>Measurement Targets</strong> — what to monitor</summary>
@@ -726,6 +733,26 @@ Common causes:
    ```
 
 5. **Check the alert queue** at [http://localhost:4040/alerts](http://localhost:4040/alerts) — pending alerts will show a "Pending" badge.
+
+</details>
+
+<details>
+<summary><strong>Config editor changes don't take effect</strong></summary>
+
+The config editor at `/config` writes to the `.env` file specified by `PINGPONG_ENV_FILE`. For this to work in Docker Compose, the host's `.env` must be mounted into the container. The default `docker-compose.yml` already includes this:
+
+```yaml
+volumes:
+  - ./.env:/app/.env
+```
+
+If you've customized your setup and this mount is missing, the config editor writes to a file inside the container that doesn't survive restarts. To fix it:
+
+1. **Add the volume mount** to your `docker-compose.yml` (see above)
+2. **Ensure `PINGPONG_ENV_FILE`** is set to `/app/.env` in your `.env` file
+3. **Restart the container:** `docker compose restart pingpong`
+
+If you're running PingPong outside Docker, set `PINGPONG_ENV_FILE` to the path of your `.env` file (defaults to `.env` in the working directory).
 
 </details>
 
