@@ -84,9 +84,10 @@ func WriteEnvFile(path string, updates map[string]string) error {
 				continue
 			}
 
-			if newVal, found := updates[key]; found {
-				lines = append(lines, key+"="+newVal)
-				seen[key] = true
+			cleanedKey := envparse.CleanKey(key)
+			if newVal, found := updates[cleanedKey]; found {
+				lines = append(lines, cleanedKey+"="+newVal)
+				seen[cleanedKey] = true
 			} else {
 				lines = append(lines, line)
 			}

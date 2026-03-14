@@ -271,3 +271,37 @@ func TestWriteEnvFile_PreservesStructure(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteEnvFile_UpdatesExportPrefixedKeys(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	original := "# config\nexport FOO=old\nBAR=keep\n"
+	if err := os.WriteFile(path, []byte(original), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	updates := map[string]string{"FOO": "new"}
+	if err := WriteEnvFile(path, updates); err != nil {
+		t.Fatalf("WriteEnvFile: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := string(data)
+
+	if !strings.Contains(result, "FOO=new") {
+		t.Error("FOO not updated")
+	}
+	if strings.Contains(result, "export FOO=old") {
+		t.Error("old export FOO line still present")
+	}
+	if strings.Count(result, "FOO=") != 1 {
+		t.Errorf("expected exactly one FOO= line, got:\n%s", result)
+	}
+	if !strings.Contains(result, "BAR=keep") {
+		t.Error("BAR not preserved")
+	}
+}
