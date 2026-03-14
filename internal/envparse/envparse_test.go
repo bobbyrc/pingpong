@@ -78,7 +78,7 @@ func TestCleanKey(t *testing.T) {
 
 		// Edge cases
 		{name: "export alone", input: "export", want: "export"},
-		{name: "export with trailing space only", input: "export ", want: ""},
+		{name: "export with trailing space only", input: "export ", want: "export "},
 	}
 
 	for _, tt := range tests {

@@ -15,6 +15,10 @@ func CleanKey(key string) string {
 	if after == trimmed {
 		return key
 	}
+	// Guard against malformed lines like "export =value" producing an empty key.
+	if trimmed == "" {
+		return key
+	}
 	return trimmed
 }
 
