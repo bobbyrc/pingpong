@@ -38,5 +38,6 @@ go.work.sum
 # .vscode/
 
 docs/plans/
+docs/superpowers/
 .worktrees/
 .superpowers/

@@ -61,6 +61,36 @@ func TestReadEnvFile_BlankLinesAndValuesWithEquals(t *testing.T) {
 	}
 }
 
+func TestReadEnvFile_StripsQuotesAndExportPrefix(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	content := "DOUBLE=\"hello\"\nSINGLE='world'\nexport EXPORTED=val\nexport BOTH=\"quoted\"\nPLAIN=unchanged\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	env, err := ReadEnvFile(path)
+	if err != nil {
+		t.Fatalf("ReadEnvFile: %v", err)
+	}
+
+	tests := []struct {
+		key, want string
+	}{
+		{"DOUBLE", "hello"},
+		{"SINGLE", "world"},
+		{"EXPORTED", "val"},
+		{"BOTH", "quoted"},
+		{"PLAIN", "unchanged"},
+	}
+	for _, tt := range tests {
+		if env[tt.key] != tt.want {
+			t.Errorf("%s = %q, want %q", tt.key, env[tt.key], tt.want)
+		}
+	}
+}
+
 func TestReadEnvFile_NotFound(t *testing.T) {
 	env, err := ReadEnvFile(filepath.Join(t.TempDir(), ".env"))
 	if err != nil {
@@ -239,5 +269,39 @@ func TestWriteEnvFile_PreservesStructure(t *testing.T) {
 		if lines[i] != want {
 			t.Errorf("line %d = %q, want %q", i, lines[i], want)
 		}
+	}
+}
+
+func TestWriteEnvFile_UpdatesExportPrefixedKeys(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	original := "# config\nexport FOO=old\nBAR=keep\n"
+	if err := os.WriteFile(path, []byte(original), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	updates := map[string]string{"FOO": "new"}
+	if err := WriteEnvFile(path, updates); err != nil {
+		t.Fatalf("WriteEnvFile: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := string(data)
+
+	if !strings.Contains(result, "FOO=new") {
+		t.Error("FOO not updated")
+	}
+	if strings.Contains(result, "export FOO=old") {
+		t.Error("old export FOO line still present")
+	}
+	if strings.Count(result, "FOO=") != 1 {
+		t.Errorf("expected exactly one FOO= line, got:\n%s", result)
+	}
+	if !strings.Contains(result, "BAR=keep") {
+		t.Error("BAR not preserved")
 	}
 }

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/bobbyrc/pingpong/internal/envparse"
 )
 
 // isFileNotExist reports whether err indicates the file at path does not exist
@@ -44,7 +46,7 @@ func ReadEnvFile(path string) (map[string]string, error) {
 		if !ok {
 			continue
 		}
-		env[key] = value
+		env[envparse.CleanKey(key)] = envparse.CleanValue(value)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scan env file: %w", err)
@@ -82,9 +84,10 @@ func WriteEnvFile(path string, updates map[string]string) error {
 				continue
 			}
 
-			if newVal, found := updates[key]; found {
-				lines = append(lines, key+"="+newVal)
-				seen[key] = true
+			cleanedKey := envparse.CleanKey(key)
+			if newVal, found := updates[cleanedKey]; found {
+				lines = append(lines, cleanedKey+"="+newVal)
+				seen[cleanedKey] = true
 			} else {
 				lines = append(lines, line)
 			}
