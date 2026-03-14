@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bobbyrc/pingpong/internal/envparse"
 )
 
 type Config struct {
@@ -61,7 +63,7 @@ func loadEnvFile(path string) map[string]string {
 			continue
 		}
 		if key, value, ok := strings.Cut(line, "="); ok {
-			env[key] = value
+			env[envparse.CleanKey(key)] = envparse.CleanValue(value)
 		}
 	}
 	if err := scanner.Err(); err != nil {
