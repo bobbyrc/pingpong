@@ -239,6 +239,32 @@ func TestLoadFromFile(t *testing.T) {
 	}
 }
 
+func TestLoadFromFile_StripsQuotesAndExportPrefix(t *testing.T) {
+	t.Setenv("PINGPONG_PING_TARGETS", "")
+	t.Setenv("PINGPONG_PING_COUNT", "")
+	t.Setenv("PINGPONG_LISTEN_ADDR", "")
+
+	tmpDir := t.TempDir()
+	envPath := filepath.Join(tmpDir, ".env")
+	content := "PINGPONG_PING_TARGETS=\"9.9.9.9\"\nexport PINGPONG_PING_COUNT=3\nexport PINGPONG_LISTEN_ADDR=\":8080\"\n"
+	if err := os.WriteFile(envPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PINGPONG_ENV_FILE", envPath)
+
+	cfg := Load()
+
+	if len(cfg.PingTargets) != 1 || cfg.PingTargets[0] != "9.9.9.9" {
+		t.Fatalf("expected ping targets [9.9.9.9], got %v", cfg.PingTargets)
+	}
+	if cfg.PingCount != 3 {
+		t.Fatalf("expected ping count 3, got %d", cfg.PingCount)
+	}
+	if cfg.ListenAddr != ":8080" {
+		t.Fatalf("expected listen addr :8080, got %s", cfg.ListenAddr)
+	}
+}
+
 func TestLoadEnvOverridesFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	envPath := filepath.Join(tmpDir, ".env")

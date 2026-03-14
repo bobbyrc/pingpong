@@ -61,6 +61,36 @@ func TestReadEnvFile_BlankLinesAndValuesWithEquals(t *testing.T) {
 	}
 }
 
+func TestReadEnvFile_StripsQuotesAndExportPrefix(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	content := "DOUBLE=\"hello\"\nSINGLE='world'\nexport EXPORTED=val\nexport BOTH=\"quoted\"\nPLAIN=unchanged\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	env, err := ReadEnvFile(path)
+	if err != nil {
+		t.Fatalf("ReadEnvFile: %v", err)
+	}
+
+	tests := []struct {
+		key, want string
+	}{
+		{"DOUBLE", "hello"},
+		{"SINGLE", "world"},
+		{"EXPORTED", "val"},
+		{"BOTH", "quoted"},
+		{"PLAIN", "unchanged"},
+	}
+	for _, tt := range tests {
+		if env[tt.key] != tt.want {
+			t.Errorf("%s = %q, want %q", tt.key, env[tt.key], tt.want)
+		}
+	}
+}
+
 func TestReadEnvFile_NotFound(t *testing.T) {
 	env, err := ReadEnvFile(filepath.Join(t.TempDir(), ".env"))
 	if err != nil {
