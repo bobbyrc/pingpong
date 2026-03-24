@@ -72,9 +72,15 @@ func TestThroughputCollector_Collect(t *testing.T) {
 }
 
 func TestThroughputCollector_Collect_ContextCancel(t *testing.T) {
-	// Serve data slowly so context cancellation is the exit path
+	// Write an initial chunk immediately, then slow down so context cancellation
+	// is the exit path. The initial chunk ensures BytesTotal > 0 even on slow CI.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
+		// Flush an initial 64KB so the reader gets bytes before the deadline
+		initial := make([]byte, 64*1024)
+		w.Write(initial)
+		w.(http.Flusher).Flush()
+
 		buf := make([]byte, 1024)
 		for {
 			if _, err := w.Write(buf); err != nil {

@@ -106,13 +106,18 @@ func (b *BufferbloatCollector) Collect(ctx context.Context) (BufferbloatResult, 
 		return BufferbloatResult{}, fmt.Errorf("bufferbloat: no loaded latency samples")
 	}
 
+	downloaded := totalBytes.Load()
+	if downloaded == 0 {
+		return BufferbloatResult{}, fmt.Errorf("bufferbloat: download failed, no load was generated")
+	}
+
 	loadedLatency := ComputeMedian(loadedSamples)
 	latencyIncrease := loadedLatency - idleLatency
 	if latencyIncrease < 0 {
 		latencyIncrease = 0
 	}
 
-	throughput := ComputeThroughput(totalBytes.Load(), downloadElapsed)
+	throughput := ComputeThroughput(downloaded, downloadElapsed)
 
 	grade := GradeBufferbloat(latencyIncrease)
 
