@@ -191,9 +191,9 @@ func (o *BandwidthOrchestrator) maybeTrigger(reason TriggerReason, triggerCh cha
 		slog.Debug("trigger cooldown active", "reason", reason)
 		return
 	}
-	o.lastTrigger = now
 	select {
 	case triggerCh <- TriggerEvent{Reason: reason, Time: now}:
+		o.lastTrigger = now
 		slog.Info("bandwidth test triggered", "reason", reason)
 	default:
 		slog.Debug("trigger channel full, skipping", "reason", reason)

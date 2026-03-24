@@ -288,3 +288,80 @@ func TestLoadMissingFileUsesDefaults(t *testing.T) {
 		t.Fatalf("expected ping count 25 (default), got %d", cfg.PingCount)
 	}
 }
+
+func TestLoadBandwidthDefaults(t *testing.T) {
+	t.Setenv("PINGPONG_ENV_FILE", filepath.Join(t.TempDir(), "nonexistent-env"))
+	cfg := Load()
+
+	if cfg.BandwidthMode != "event" {
+		t.Fatalf("expected bandwidth mode 'event', got %q", cfg.BandwidthMode)
+	}
+	if cfg.BandwidthBaselineInterval != 6*time.Hour {
+		t.Fatalf("expected baseline interval 6h, got %v", cfg.BandwidthBaselineInterval)
+	}
+	if cfg.BandwidthMinNDT7Interval != 4*time.Hour {
+		t.Fatalf("expected min NDT7 interval 4h, got %v", cfg.BandwidthMinNDT7Interval)
+	}
+	if cfg.BandwidthMinBloatInterval != 1*time.Hour {
+		t.Fatalf("expected min bloat interval 1h, got %v", cfg.BandwidthMinBloatInterval)
+	}
+	if cfg.BandwidthTriggerCooldown != 30*time.Minute {
+		t.Fatalf("expected trigger cooldown 30m, got %v", cfg.BandwidthTriggerCooldown)
+	}
+}
+
+func TestLoadBufferbloatDefaults(t *testing.T) {
+	t.Setenv("PINGPONG_ENV_FILE", filepath.Join(t.TempDir(), "nonexistent-env"))
+	cfg := Load()
+
+	if cfg.BufferbloatDownloadURL != "https://speed.cloudflare.com/__down?bytes=100000000" {
+		t.Fatalf("expected default bufferbloat URL, got %q", cfg.BufferbloatDownloadURL)
+	}
+	if cfg.BufferbloatInterval != 6*time.Hour {
+		t.Fatalf("expected bufferbloat interval 6h, got %v", cfg.BufferbloatInterval)
+	}
+	if cfg.AlertBufferbloatGrade != "D" {
+		t.Fatalf("expected alert bufferbloat grade 'D', got %q", cfg.AlertBufferbloatGrade)
+	}
+}
+
+func TestLoadThroughputDefaults(t *testing.T) {
+	t.Setenv("PINGPONG_ENV_FILE", filepath.Join(t.TempDir(), "nonexistent-env"))
+	cfg := Load()
+
+	if cfg.ThroughputInterval != 24*time.Hour {
+		t.Fatalf("expected throughput interval 24h, got %v", cfg.ThroughputInterval)
+	}
+	if cfg.ThroughputStreams != 4 {
+		t.Fatalf("expected throughput streams 4, got %d", cfg.ThroughputStreams)
+	}
+	if cfg.ThroughputDuration != 10*time.Second {
+		t.Fatalf("expected throughput duration 10s, got %v", cfg.ThroughputDuration)
+	}
+}
+
+func TestLoadBandwidthFromEnv(t *testing.T) {
+	t.Setenv("PINGPONG_BANDWIDTH_MODE", "scheduled")
+	t.Setenv("PINGPONG_BANDWIDTH_BASELINE_INTERVAL", "12h")
+	t.Setenv("PINGPONG_THROUGHPUT_STREAMS", "8")
+	t.Setenv("PINGPONG_BUFFERBLOAT_DOWNLOAD_URL", "https://example.com/download")
+	t.Setenv("PINGPONG_ALERT_BUFFERBLOAT_GRADE", "C")
+
+	cfg := Load()
+
+	if cfg.BandwidthMode != "scheduled" {
+		t.Fatalf("expected bandwidth mode 'scheduled', got %q", cfg.BandwidthMode)
+	}
+	if cfg.BandwidthBaselineInterval != 12*time.Hour {
+		t.Fatalf("expected baseline interval 12h, got %v", cfg.BandwidthBaselineInterval)
+	}
+	if cfg.ThroughputStreams != 8 {
+		t.Fatalf("expected throughput streams 8, got %d", cfg.ThroughputStreams)
+	}
+	if cfg.BufferbloatDownloadURL != "https://example.com/download" {
+		t.Fatalf("expected custom bufferbloat URL, got %q", cfg.BufferbloatDownloadURL)
+	}
+	if cfg.AlertBufferbloatGrade != "C" {
+		t.Fatalf("expected alert grade 'C', got %q", cfg.AlertBufferbloatGrade)
+	}
+}
