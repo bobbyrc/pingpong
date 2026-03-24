@@ -2,7 +2,6 @@ package collector
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"net/http"
 	"sync/atomic"
@@ -90,10 +89,13 @@ func (t *ThroughputCollector) Collect(ctx context.Context) (ThroughputResult, er
 	return result, nil
 }
 
-// downloadStream performs a single HTTP GET and reads bytes until the context
-// deadline or the server closes the connection.
+// downloadStream performs a single HTTP GET and reads bytes until the duration
+// elapses, the context is cancelled, or the server closes the connection.
 func downloadStream(ctx context.Context, url string, duration time.Duration) (int64, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	dlCtx, cancel := context.WithTimeout(ctx, duration)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(dlCtx, http.MethodGet, url, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -104,27 +106,15 @@ func downloadStream(ctx context.Context, url string, duration time.Duration) (in
 	}
 	defer resp.Body.Close()
 
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-
 	buf := make([]byte, 64*1024)
 	var total int64
 
 	for {
-		select {
-		case <-timer.C:
+		n, err := resp.Body.Read(buf)
+		total += int64(n)
+		if err != nil {
+			// Context timeout, EOF, or real error — all mean we're done
 			return total, nil
-		case <-ctx.Done():
-			return total, nil
-		default:
-			n, err := resp.Body.Read(buf)
-			total += int64(n)
-			if err != nil {
-				if err == io.EOF {
-					return total, nil
-				}
-				return total, err
-			}
 		}
 	}
 }

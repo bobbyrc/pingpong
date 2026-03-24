@@ -124,14 +124,8 @@ func (o *BandwidthOrchestrator) ReportPing(results []PingResult, triggerCh chan<
 	defer o.mu.Unlock()
 
 	for _, r := range results {
-		if r.PacketLoss < 100 && r.AvgMs > 0 {
-			o.pingBaseline.Update(r.AvgMs)
-		}
-		if r.JitterMs > 0 {
-			o.jitterBaseline.Update(r.JitterMs)
-		}
-
-		// Check for anomalies
+		// Check for anomalies BEFORE updating baselines so spikes
+		// are compared against the pre-spike baseline value.
 		if o.pingBaseline.Ready() {
 			if r.AvgMs > o.pingBaseline.Value()*o.cfg.LatencyMultiplier {
 				o.maybeTrigger(TriggerLatencySpike, triggerCh)
@@ -144,6 +138,14 @@ func (o *BandwidthOrchestrator) ReportPing(results []PingResult, triggerCh chan<
 		}
 		if r.PacketLoss > o.cfg.PacketLossThreshold {
 			o.maybeTrigger(TriggerPacketLoss, triggerCh)
+		}
+
+		// Update baselines after anomaly detection
+		if r.PacketLoss < 100 && r.AvgMs > 0 {
+			o.pingBaseline.Update(r.AvgMs)
+		}
+		if r.JitterMs > 0 {
+			o.jitterBaseline.Update(r.JitterMs)
 		}
 	}
 }
