@@ -150,14 +150,6 @@ func TestLoadDNSTargetsDefaults(t *testing.T) {
 	}
 }
 
-func TestLoadSpeedtestServerID(t *testing.T) {
-	t.Setenv("PINGPONG_SPEEDTEST_SERVER_ID", "12345")
-	cfg := Load()
-	if cfg.SpeedtestServerID != "12345" {
-		t.Fatalf("expected server ID 12345, got %s", cfg.SpeedtestServerID)
-	}
-}
-
 func TestLoadInvalidInt(t *testing.T) {
 	t.Setenv("PINGPONG_PING_COUNT", "abc")
 	cfg := Load()

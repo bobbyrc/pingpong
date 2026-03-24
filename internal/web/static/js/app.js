@@ -247,6 +247,7 @@
         updateConnectionStatus(metrics);
         updatePingCards(metrics);
         updateSpeedTest(metrics);
+        updateBufferbloat(metrics);
         updateDNS(metrics);
         updateTraceroute(metrics);
     }
@@ -480,8 +481,9 @@
     function updateSpeedTest(metrics) {
         var dlEntry = first(metrics, 'pingpong_download_speed_mbps');
         var ulEntry = first(metrics, 'pingpong_upload_speed_mbps');
-        var latEntry = first(metrics, 'pingpong_speedtest_latency_ms');
-        var infoEntry = first(metrics, 'pingpong_speedtest_info');
+        var rttEntry = first(metrics, 'pingpong_ndt7_min_rtt_ms');
+        var retransEntry = first(metrics, 'pingpong_ndt7_retransmission_rate');
+        var infoEntry = first(metrics, 'pingpong_ndt7_info');
 
         // Download
         var dlEl = document.getElementById('speedtest-download');
@@ -511,29 +513,77 @@
             setText(document.getElementById('ul-max'), formatSpeed(ulStats.max));
         }
 
-        // Latency
-        var latEl = document.getElementById('speedtest-latency');
-        if (latEl && latEntry) {
-            setText(latEl, formatLatency(latEntry.value));
-            removeLoading(latEl);
+        // Min RTT
+        var rttEl = document.getElementById('speedtest-minrtt');
+        if (rttEl && rttEntry) {
+            setText(rttEl, formatLatency(rttEntry.value));
+            removeLoading(rttEl);
         }
 
-        // Jitter
-        var jitEl = document.getElementById('speedtest-jitter');
-        if (jitEl) {
-            var jitEntry = first(metrics, 'pingpong_speedtest_jitter_ms');
-            setText(jitEl, jitEntry ? formatLatency(jitEntry.value) : '--');
-            if (jitEntry) removeLoading(jitEl);
+        // Retransmission rate (display as percentage)
+        var retransEl = document.getElementById('speedtest-retrans');
+        if (retransEl && retransEntry) {
+            setText(retransEl, (retransEntry.value * 100).toFixed(2));
+            removeLoading(retransEl);
         }
 
-        // Server info
+        // Server info (NDT7)
         var serverNameEl = document.getElementById('speedtest-server-name');
         if (serverNameEl && infoEntry && infoEntry.labels) {
             var name = infoEntry.labels.server_name || '';
-            var location = infoEntry.labels.server_location || '';
-            var display = name;
-            if (location) display += ' (' + location + ')';
-            setText(serverNameEl, display || '--');
+            setText(serverNameEl, name || '--');
+        }
+
+        // Max download speed (multi-stream throughput)
+        var maxDlEntry = first(metrics, 'pingpong_max_download_speed_mbps');
+        var maxDlEl = document.getElementById('max-download-speed');
+        var maxDlWrapper = document.getElementById('max-download-wrapper');
+        if (maxDlEl && maxDlEntry && maxDlEntry.value > 0) {
+            setText(maxDlEl, formatSpeed(maxDlEntry.value));
+            if (maxDlWrapper) maxDlWrapper.style.display = '';
+        }
+    }
+
+    // ── Bufferbloat ──────────────────────────────────────────
+
+    var GRADE_MAP = {6: 'A+', 5: 'A', 4: 'B', 3: 'C', 2: 'D', 1: 'F'};
+
+    function gradeColor(numericGrade) {
+        if (numericGrade >= 5) return 'text-green';
+        if (numericGrade >= 3) return 'text-yellow';
+        return 'text-red';
+    }
+
+    function updateBufferbloat(metrics) {
+        var gradeEntry = first(metrics, 'pingpong_bufferbloat_grade');
+        if (!gradeEntry || gradeEntry.value === 0) return;
+
+        var section = document.getElementById('bufferbloat-section');
+        if (section) section.style.display = '';
+
+        var gradeEl = document.getElementById('bufferbloat-grade');
+        if (gradeEl) {
+            var letter = GRADE_MAP[gradeEntry.value] || '--';
+            setText(gradeEl, letter);
+            setColor(gradeEl, gradeColor(gradeEntry.value));
+        }
+
+        var increaseEntry = first(metrics, 'pingpong_bufferbloat_latency_increase_ms');
+        var increaseEl = document.getElementById('bufferbloat-latency-increase');
+        if (increaseEl && increaseEntry) {
+            setText(increaseEl, formatLatency(increaseEntry.value));
+        }
+
+        var idleEntry = first(metrics, 'pingpong_bufferbloat_idle_latency_ms');
+        var idleEl = document.getElementById('bufferbloat-idle');
+        if (idleEl && idleEntry) {
+            setText(idleEl, formatLatency(idleEntry.value));
+        }
+
+        var loadedEntry = first(metrics, 'pingpong_bufferbloat_loaded_latency_ms');
+        var loadedEl = document.getElementById('bufferbloat-loaded');
+        if (loadedEl && loadedEntry) {
+            setText(loadedEl, formatLatency(loadedEntry.value));
         }
     }
 
