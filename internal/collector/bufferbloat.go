@@ -71,6 +71,10 @@ func (b *BufferbloatCollector) Collect(ctx context.Context) (BufferbloatResult, 
 			return
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			slog.Debug("bufferbloat download returned non-2xx", "status", resp.StatusCode)
+			return
+		}
 		buf := make([]byte, 64*1024)
 		for {
 			n, readErr := resp.Body.Read(buf)
@@ -89,7 +93,7 @@ func (b *BufferbloatCollector) Collect(ctx context.Context) (BufferbloatResult, 
 	}
 
 	// Measure latency under load (~25 pings over 5 seconds)
-	loadedSamples, err := b.measureLatency(ctx, 25, 200*time.Millisecond)
+	loadedSamples, err := b.measureLatency(loadCtx, 25, 200*time.Millisecond)
 	loadCancel() // Stop the download
 	downloadDone.Wait()
 

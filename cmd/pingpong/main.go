@@ -430,6 +430,11 @@ func main() {
 			case <-time.After(60 * time.Second):
 			}
 
+			if cfg.BufferbloatInterval <= 0 {
+				slog.Warn("bufferbloat monitoring disabled due to non-positive interval")
+				return
+			}
+
 			ticker := time.NewTicker(cfg.BufferbloatInterval)
 			defer ticker.Stop()
 
@@ -467,6 +472,11 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-time.After(2 * time.Minute):
+			}
+
+			if cfg.ThroughputInterval <= 0 {
+				slog.Warn("throughput monitoring disabled due to non-positive interval")
+				return
 			}
 
 			ticker := time.NewTicker(cfg.ThroughputInterval)

@@ -39,6 +39,9 @@ func NewThroughputCollector(downloadURL string, streams int, duration time.Durat
 	if streams <= 0 {
 		streams = DefaultThroughputStreams
 	}
+	if streams > 16 {
+		streams = 16
+	}
 	if duration <= 0 {
 		duration = DefaultThroughputDuration
 	}
@@ -80,6 +83,10 @@ func (t *ThroughputCollector) Collect(ctx context.Context) (ThroughputResult, er
 
 	elapsed := time.Since(start)
 	total := totalBytes.Load()
+
+	if total == 0 {
+		return ThroughputResult{}, fmt.Errorf("all %d download streams failed or returned no data", t.streams)
+	}
 
 	result := ThroughputResult{
 		DownloadMbps: ComputeThroughput(total, elapsed),

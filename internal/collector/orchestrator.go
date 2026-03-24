@@ -95,9 +95,6 @@ func NewBandwidthOrchestrator(ndt7 *NDT7Collector, bb *BufferbloatCollector, cfg
 // Run starts the orchestrator loop. It runs baseline tests on schedule and
 // listens for triggered tests via resultCh. Blocks until ctx is cancelled.
 func (o *BandwidthOrchestrator) Run(ctx context.Context, resultCh chan<- BandwidthResult) {
-	baselineTicker := time.NewTicker(o.cfg.BaselineInterval)
-	defer baselineTicker.Stop()
-
 	// Run initial baseline after a short delay
 	select {
 	case <-ctx.Done():
@@ -106,6 +103,15 @@ func (o *BandwidthOrchestrator) Run(ctx context.Context, resultCh chan<- Bandwid
 	}
 
 	o.runTest(ctx, TriggerBaseline, resultCh)
+
+	if o.cfg.BaselineInterval <= 0 {
+		slog.Warn("baseline interval is non-positive; disabling periodic baseline tests")
+		<-ctx.Done()
+		return
+	}
+
+	baselineTicker := time.NewTicker(o.cfg.BaselineInterval)
+	defer baselineTicker.Stop()
 
 	for {
 		select {

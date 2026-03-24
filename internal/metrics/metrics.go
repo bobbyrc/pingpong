@@ -192,7 +192,7 @@ func New(reg prometheus.Registerer) *Metrics {
 
 		BandwidthTestTriggers: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "pingpong_bandwidth_test_triggers_total",
-			Help: "Total bandwidth test triggers by reason",
+			Help: "Total completed bandwidth tests by trigger reason",
 		}, []string{"reason"}),
 	}
 

@@ -541,6 +541,9 @@
         if (maxDlEl && maxDlEntry && maxDlEntry.value > 0) {
             setText(maxDlEl, formatSpeed(maxDlEntry.value));
             if (maxDlWrapper) maxDlWrapper.style.display = '';
+        } else if (maxDlEl) {
+            setText(maxDlEl, '--');
+            if (maxDlWrapper) maxDlWrapper.style.display = 'none';
         }
     }
 
@@ -555,10 +558,12 @@
     }
 
     function updateBufferbloat(metrics) {
-        var gradeEntry = first(metrics, 'pingpong_bufferbloat_grade');
-        if (!gradeEntry || gradeEntry.value === 0) return;
-
         var section = document.getElementById('bufferbloat-section');
+        var gradeEntry = first(metrics, 'pingpong_bufferbloat_grade');
+        if (!gradeEntry || gradeEntry.value === 0) {
+            if (section) section.style.display = 'none';
+            return;
+        }
         if (section) section.style.display = '';
 
         var gradeEl = document.getElementById('bufferbloat-grade');
