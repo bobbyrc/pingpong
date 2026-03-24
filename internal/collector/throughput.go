@@ -2,6 +2,8 @@ package collector
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"sync/atomic"
@@ -106,6 +108,10 @@ func downloadStream(ctx context.Context, url string, duration time.Duration) (in
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return 0, fmt.Errorf("download returned HTTP %d", resp.StatusCode)
+	}
+
 	buf := make([]byte, 64*1024)
 	var total int64
 
@@ -113,8 +119,10 @@ func downloadStream(ctx context.Context, url string, duration time.Duration) (in
 		n, err := resp.Body.Read(buf)
 		total += int64(n)
 		if err != nil {
-			// Context timeout, EOF, or real error — all mean we're done
-			return total, nil
+			if err == io.EOF || dlCtx.Err() != nil {
+				return total, nil
+			}
+			return total, err
 		}
 	}
 }

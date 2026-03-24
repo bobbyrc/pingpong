@@ -482,7 +482,6 @@ func main() {
 				m.MaxDownloadSpeed.Set(result.DownloadMbps)
 				m.ThroughputStreams.Set(float64(result.Streams))
 
-				// Also update backward-compat download speed if higher than NDT7
 				slog.Info("throughput test complete",
 					"download_mbps", result.DownloadMbps,
 					"streams", result.Streams,

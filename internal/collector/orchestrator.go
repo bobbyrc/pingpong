@@ -156,13 +156,16 @@ func (o *BandwidthOrchestrator) ReportDNS(results []DNSResult, triggerCh chan<- 
 	defer o.mu.Unlock()
 
 	for _, r := range results {
-		if r.ResolutionMs > 0 {
-			o.dnsBaseline.Update(r.ResolutionMs)
-		}
+		// Check for anomalies BEFORE updating the baseline so spikes
+		// are compared against the pre-spike baseline value.
 		if o.dnsBaseline.Ready() {
 			if r.ResolutionMs > o.dnsBaseline.Value()*o.cfg.DNSMultiplier {
 				o.maybeTrigger(TriggerDNSSlow, triggerCh)
 			}
+		}
+
+		if r.ResolutionMs > 0 {
+			o.dnsBaseline.Update(r.ResolutionMs)
 		}
 	}
 }
@@ -201,6 +204,14 @@ func (o *BandwidthOrchestrator) runTest(ctx context.Context, reason TriggerReaso
 	now := o.now()
 	canNDT7 := now.Sub(o.lastNDT7) >= o.cfg.MinNDT7Interval
 	canBloat := o.bufferbloat != nil && now.Sub(o.lastBufferbloat) >= o.cfg.MinBloatInterval
+	// Reserve timestamps under the lock to prevent concurrent runTest calls
+	// from both passing the interval check and running overlapping tests.
+	if canNDT7 {
+		o.lastNDT7 = now
+	}
+	if canBloat {
+		o.lastBufferbloat = now
+	}
 	o.mu.Unlock()
 
 	if canNDT7 {
@@ -209,9 +220,6 @@ func (o *BandwidthOrchestrator) runTest(ctx context.Context, reason TriggerReaso
 			slog.Error("orchestrator NDT7 test failed", "reason", reason, "error", err)
 		} else {
 			result.NDT7 = &ndt7Result
-			o.mu.Lock()
-			o.lastNDT7 = o.now()
-			o.mu.Unlock()
 		}
 	}
 
@@ -221,9 +229,6 @@ func (o *BandwidthOrchestrator) runTest(ctx context.Context, reason TriggerReaso
 			slog.Error("orchestrator bufferbloat test failed", "reason", reason, "error", err)
 		} else {
 			result.Bufferbloat = &bbResult
-			o.mu.Lock()
-			o.lastBufferbloat = o.now()
-			o.mu.Unlock()
 		}
 	}
 

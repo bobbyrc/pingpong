@@ -102,7 +102,15 @@ func (e *Engine) EvaluateBufferbloat(result collector.BufferbloatResult) {
 	if e.cfg.AlertBufferbloatGrade == "" {
 		return
 	}
-	if collector.GradeToNumeric(result.Grade) <= collector.GradeToNumeric(e.cfg.AlertBufferbloatGrade) {
+	gradeNumeric := collector.GradeToNumeric(result.Grade)
+	thresholdNumeric := collector.GradeToNumeric(e.cfg.AlertBufferbloatGrade)
+	if gradeNumeric == 0 || thresholdNumeric == 0 {
+		slog.Warn("invalid bufferbloat grade, skipping alert",
+			"resultGrade", result.Grade,
+			"alertGrade", e.cfg.AlertBufferbloatGrade)
+		return
+	}
+	if gradeNumeric <= thresholdNumeric {
 		e.fireAlert("bufferbloat", "bufferbloat",
 			"Bufferbloat Detected",
 			fmt.Sprintf("Bufferbloat grade: %s (latency increase: %.0fms under load). Idle: %.1fms, Loaded: %.1fms",
