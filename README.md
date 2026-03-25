@@ -872,12 +872,13 @@ If you're upgrading from an older version of PingPong that used the Ookla Speedt
 
 **What's the same:**
 - `pingpong_download_speed_mbps` and `pingpong_upload_speed_mbps` still work — they're populated from NDT7 results
-- Existing Grafana dashboards using these metric names will continue to work
+- Existing Grafana dashboards or panels that only use these speed metrics will continue to work without changes
 - Alert thresholds for speed (`PINGPONG_ALERT_SPEED_THRESHOLD`) work the same way
+- The bundled Grafana dashboard (`grafana/dashboards/pingpong.json`) has been updated to use NDT7 metrics
 
 **Action required:**
 - Remove `PINGPONG_SPEEDTEST_SERVER_ID` from your `.env` if present (it's ignored now)
-- If you have Grafana panels using `pingpong_speedtest_latency_ms` or `pingpong_speedtest_jitter_ms`, update them to use `pingpong_ndt7_min_rtt_ms` and `pingpong_ndt7_retransmission_rate`
+- If you have custom Grafana panels using `pingpong_speedtest_latency_ms` or `pingpong_speedtest_jitter_ms`, update them to use `pingpong_ndt7_min_rtt_ms` and `pingpong_ndt7_retransmission_rate`
 - Speed test results may differ between Ookla and NDT7 — this is normal. NDT7 single-stream results are often lower than Ookla's multi-stream tests. Use the new multi-stream throughput collector for a closer comparison.
 
 </details>

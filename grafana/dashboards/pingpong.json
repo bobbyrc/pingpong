@@ -391,13 +391,13 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "expr": "pingpong_speedtest_latency_ms",
+          "expr": "pingpong_ndt7_min_rtt_ms",
           "instant": true,
-          "legendFormat": "Latency",
+          "legendFormat": "Min RTT",
           "refId": "A"
         }
       ],
-      "title": "Speedtest Latency",
+      "title": "NDT7 Min RTT",
       "type": "stat"
     },
     {
