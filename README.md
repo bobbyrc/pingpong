@@ -123,7 +123,7 @@ This starts only PingPong and Apprise. Metrics are exposed at `/metrics` for you
 
 The PingPong dashboard updates in real time via server-sent events. Give it a minute for the first ping cycle to complete and you'll see data start flowing in.
 
-> **Note:** The first NDT7 speed test takes about 20 seconds. In the default **event** bandwidth mode, the first test runs immediately on startup, and subsequent tests are triggered automatically when PingPong detects network anomalies. See [Bandwidth Orchestrator](#bandwidth-orchestrator) for details.
+> **Note:** The first NDT7 speed test takes about 20 seconds. In the default **event** bandwidth mode, the orchestrator waits ~30 seconds after startup before running the first baseline test, and needs a few ping cycles before anomaly-based triggers become active. Speed metrics will be empty during this brief warmup. See [Bandwidth Orchestrator](#bandwidth-orchestrator) for details.
 
 ---
 
@@ -172,7 +172,7 @@ Each test takes approximately 20 seconds (10s download + 10s upload) and capture
 - **Download speed** (Mbps) — single-stream throughput
 - **Upload speed** (Mbps) — single-stream throughput
 - **Minimum RTT** (ms) — the lowest round-trip time observed during the test (from TCP INFO), representing your connection's true baseline latency
-- **TCP retransmission rate** (0.0–1.0) — fraction of packets that needed retransmission, indicating network congestion or link errors
+- **TCP retransmission rate** (0.0–1.0) — fraction of bytes that were retransmitted (BytesRetrans / BytesSent), indicating network congestion or link errors
 - **Server name** — the M-Lab server used for the test
 
 > **Why NDT7 instead of Ookla?** NDT7 is open-source, runs as pure Go (no 30MB proprietary binary), provides richer TCP-level diagnostics (RTT, retransmissions), and uses M-Lab's globally distributed, research-grade infrastructure. The backward-compatible metrics `pingpong_download_speed_mbps` and `pingpong_upload_speed_mbps` continue to work — they're populated from NDT7 results.
@@ -184,7 +184,7 @@ Measures **latency under load** — how much your ping degrades when your connec
 The test works in three phases:
 1. **Idle baseline** — sends 5 ICMP pings to establish your unloaded latency
 2. **Load generation** — starts a large HTTP download from Cloudflare's CDN
-3. **Loaded measurement** — sends 10 pings *while the download is running* and takes the median
+3. **Loaded measurement** — sends 25 ICMP pings at 200ms intervals (~5s) *while the download is running* and takes the median
 
 The result is a latency increase value and a letter grade:
 
@@ -205,7 +205,9 @@ The bufferbloat test uses `PINGPONG_BUFFERBLOAT_TARGET` for the ICMP pings (defa
 
 While NDT7 measures single-stream speed (limited by TCP congestion control), the throughput collector runs **parallel HTTP downloads** to saturate your connection and find its true maximum bandwidth. This is the closest equivalent to what browser-based speed tests (like fast.com or speedtest.net) report.
 
-- Downloads from Cloudflare's CDN using 4 parallel streams (configurable, 1–16)
+This collector is **opt-in** — set `PINGPONG_THROUGHPUT_DOWNLOAD_URL` to enable it (e.g., `https://speed.cloudflare.com/__down?bytes=250000000`).
+
+- Downloads using 4 parallel streams (configurable, 1–16)
 - Each test runs for 10 seconds (configurable)
 - Reports the aggregate download speed across all streams
 
@@ -319,7 +321,7 @@ PINGPONG_DNS_SERVERS=1.1.1.1,8.8.8.8
 
 Values use Go duration syntax: `30s`, `5m`, `1h`, `2h30m`.
 
-> **Note:** `PINGPONG_SPEEDTEST_INTERVAL` only applies in `scheduled` bandwidth mode. In the default `event` mode, the orchestrator controls when speed tests run. See [Bandwidth & Bufferbloat](#bandwidth--bufferbloat) below.
+> **Note:** `PINGPONG_SPEEDTEST_INTERVAL` only applies in `scheduled` bandwidth mode. In the default `event` mode, the orchestrator controls when speed tests run. See the Bandwidth & Bufferbloat section below.
 
 </details>
 
@@ -344,7 +346,7 @@ Values use Go duration syntax: `30s`, `5m`, `1h`, `2h30m`.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PINGPONG_THROUGHPUT_DOWNLOAD_URL` | URL for parallel downloads (empty = Cloudflare CDN) | _(empty)_ |
+| `PINGPONG_THROUGHPUT_DOWNLOAD_URL` | URL for parallel downloads (empty = disabled; set to enable, e.g. `https://speed.cloudflare.com/__down?bytes=250000000`) | _(empty)_ |
 | `PINGPONG_THROUGHPUT_STREAMS` | Number of parallel download streams (1–16) | `4` |
 | `PINGPONG_THROUGHPUT_DURATION` | How long each throughput test runs | `10s` |
 | `PINGPONG_THROUGHPUT_INTERVAL` | Time between throughput tests | `24h` |
@@ -649,8 +651,8 @@ Trigger reason labels: `baseline`, `latency_spike`, `jitter_spike`, `packet_loss
 | `pingpong_connection_up` | gauge | Whether the connection is up (1) or down (0) |
 | `pingpong_downtime_seconds_total` | counter | Total downtime in seconds |
 | `pingpong_connection_flaps_total` | counter | Total up/down state transitions |
-| `pingpong_speedtest_failures_total` | counter | Total speedtest execution failures |
-| `pingpong_speedtest_info` | gauge | Speedtest server metadata (labels: `server_name`, `server_location`, `isp`) |
+| `pingpong_speedtest_failures_total` | counter | Legacy (Ookla-era): registered but no longer updated in current runtime |
+| `pingpong_speedtest_info` | gauge | Legacy (Ookla-era): registered but no longer updated (labels: `server_name`, `server_location`, `isp`) |
 | `pingpong_traceroute_failures_total` | counter | Total traceroute execution failures |
 
 </details>
@@ -1096,7 +1098,7 @@ The dashboard uses Server-Sent Events (SSE) to receive real-time updates. If met
 <summary><strong>Bandwidth tests running too frequently or not at all</strong></summary>
 
 **Tests not running in event mode:**
-- The orchestrator needs ~5 ping cycles (5 minutes with default settings) to build a baseline before it can detect anomalies. Check the logs for "warmup" messages.
+- The orchestrator needs ~5 ping cycles (5 minutes with default settings) to build a baseline before it can detect anomalies. Bandwidth tests triggered by anomalies will only start after this initial warmup period.
 - Baseline tests run every 6 hours by default. If your connection is stable, you won't see triggered tests.
 - Check `curl -s http://localhost:4040/metrics | grep bandwidth_test_triggers` to see trigger counts.
 
