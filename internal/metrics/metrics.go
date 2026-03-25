@@ -10,8 +10,6 @@ type Metrics struct {
 	PacketLoss           *prometheus.GaugeVec
 	DownloadSpeed        prometheus.Gauge
 	UploadSpeed          prometheus.Gauge
-	SpeedtestLatency     prometheus.Gauge
-	SpeedtestJitter      prometheus.Gauge
 	DNSResolution        *prometheus.GaugeVec
 	ConnectionUp         prometheus.Gauge
 	DowntimeTotal        prometheus.Counter
@@ -77,14 +75,6 @@ func New(reg prometheus.Registerer) *Metrics {
 		UploadSpeed: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "pingpong_upload_speed_mbps",
 			Help: "Upload speed in Mbps",
-		}),
-		SpeedtestLatency: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "pingpong_speedtest_latency_ms",
-			Help: "Latency reported by speed test in milliseconds",
-		}),
-		SpeedtestJitter: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "pingpong_speedtest_jitter_ms",
-			Help: "Jitter reported by speed test in milliseconds",
 		}),
 		DNSResolution: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "pingpong_dns_resolution_ms",
@@ -199,7 +189,7 @@ func New(reg prometheus.Registerer) *Metrics {
 	reg.MustRegister(
 		m.PingLatency, m.PingMin, m.PingMax,
 		m.Jitter, m.PacketLoss,
-		m.DownloadSpeed, m.UploadSpeed, m.SpeedtestLatency, m.SpeedtestJitter,
+		m.DownloadSpeed, m.UploadSpeed,
 		m.DNSResolution, m.DNSFailures,
 		m.ConnectionUp, m.DowntimeTotal, m.ConnectionFlaps,
 		m.TracerouteHops, m.TracerouteHopLatency, m.TracerouteFailures,

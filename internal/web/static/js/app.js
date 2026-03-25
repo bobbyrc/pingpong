@@ -515,9 +515,13 @@
 
         // Min RTT
         var rttEl = document.getElementById('speedtest-minrtt');
-        if (rttEl && rttEntry) {
-            setText(rttEl, formatLatency(rttEntry.value));
-            removeLoading(rttEl);
+        if (rttEl) {
+            if (rttEntry) {
+                setText(rttEl, formatLatency(rttEntry.value));
+                removeLoading(rttEl);
+            } else {
+                setText(rttEl, '--');
+            }
         }
 
         // Retransmission rate (display as percentage)
