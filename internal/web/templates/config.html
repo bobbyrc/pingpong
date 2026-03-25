@@ -43,9 +43,29 @@
                     <input class="form-input" type="text" id="PINGPONG_TRACEROUTE_TARGET" name="PINGPONG_TRACEROUTE_TARGET" placeholder="1.1.1.1">
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="PINGPONG_SPEEDTEST_SERVER_ID">Speedtest Server ID</label>
-                    <input class="form-input" type="text" id="PINGPONG_SPEEDTEST_SERVER_ID" name="PINGPONG_SPEEDTEST_SERVER_ID" placeholder="(auto-select)">
-                    <span class="form-hint">Optional. Pin to a specific Ookla server by ID.</span>
+                    <label class="form-label" for="PINGPONG_BUFFERBLOAT_TARGET">Bufferbloat Ping Target</label>
+                    <input class="form-input" type="text" id="PINGPONG_BUFFERBLOAT_TARGET" name="PINGPONG_BUFFERBLOAT_TARGET" placeholder="(uses first ping target)">
+                    <span class="form-hint">IP/host to ping during bufferbloat test. Defaults to first ping target.</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_BUFFERBLOAT_DOWNLOAD_URL">Bufferbloat Download URL</label>
+                    <input class="form-input" type="text" id="PINGPONG_BUFFERBLOAT_DOWNLOAD_URL" name="PINGPONG_BUFFERBLOAT_DOWNLOAD_URL" placeholder="https://speed.cloudflare.com/__down?bytes=100000000">
+                    <span class="form-hint">URL to download during bufferbloat test (default: Cloudflare 100MB endpoint).</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_THROUGHPUT_DOWNLOAD_URL">Throughput Download URL</label>
+                    <input class="form-input" type="text" id="PINGPONG_THROUGHPUT_DOWNLOAD_URL" name="PINGPONG_THROUGHPUT_DOWNLOAD_URL" placeholder="https://speed.cloudflare.com/__down?bytes=250000000">
+                    <span class="form-hint">URL for multi-stream max speed test. Leave empty to disable.</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_THROUGHPUT_STREAMS">Throughput Streams</label>
+                    <input class="form-input" type="number" id="PINGPONG_THROUGHPUT_STREAMS" name="PINGPONG_THROUGHPUT_STREAMS" placeholder="4" min="1" max="16">
+                    <span class="form-hint">Number of parallel download streams (default: 4)</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_THROUGHPUT_DURATION">Throughput Duration</label>
+                    <input class="form-input" type="text" id="PINGPONG_THROUGHPUT_DURATION" name="PINGPONG_THROUGHPUT_DURATION" placeholder="10s">
+                    <span class="form-hint">Duration of each throughput test (e.g. 10s, 15s)</span>
                 </div>
             </div>
         </div>
@@ -63,7 +83,7 @@
                     <span class="form-hint">Go duration (e.g. 30s, 1m, 2m30s)</span>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="PINGPONG_SPEEDTEST_INTERVAL">Speedtest Interval</label>
+                    <label class="form-label" for="PINGPONG_SPEEDTEST_INTERVAL">NDT7 Interval</label>
                     <input class="form-input" type="text" id="PINGPONG_SPEEDTEST_INTERVAL" name="PINGPONG_SPEEDTEST_INTERVAL" placeholder="30m">
                     <span class="form-hint">Go duration (e.g. 15m, 30m, 1h)</span>
                 </div>
@@ -74,6 +94,51 @@
                 <div class="form-group">
                     <label class="form-label" for="PINGPONG_TRACEROUTE_INTERVAL">Traceroute Interval</label>
                     <input class="form-input" type="text" id="PINGPONG_TRACEROUTE_INTERVAL" name="PINGPONG_TRACEROUTE_INTERVAL" placeholder="15m">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_BUFFERBLOAT_INTERVAL">Bufferbloat Interval</label>
+                    <input class="form-input" type="text" id="PINGPONG_BUFFERBLOAT_INTERVAL" name="PINGPONG_BUFFERBLOAT_INTERVAL" placeholder="6h">
+                    <span class="form-hint">Go duration (e.g. 6h, 12h)</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_THROUGHPUT_INTERVAL">Throughput Test Interval</label>
+                    <input class="form-input" type="text" id="PINGPONG_THROUGHPUT_INTERVAL" name="PINGPONG_THROUGHPUT_INTERVAL" placeholder="24h">
+                    <span class="form-hint">Go duration for multi-stream max speed test (e.g. 24h)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bandwidth Mode -->
+        <div class="config-card">
+            <div class="config-card-header" data-collapse="bandwidth">
+                <h3 class="config-card-title">Bandwidth Testing</h3>
+                <span class="chevron">&#9662;</span>
+            </div>
+            <div class="config-card-body" id="bandwidth">
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_BANDWIDTH_MODE">Bandwidth Mode</label>
+                    <input class="form-input" type="text" id="PINGPONG_BANDWIDTH_MODE" name="PINGPONG_BANDWIDTH_MODE" placeholder="event">
+                    <span class="form-hint">Testing mode: "event" (anomaly-triggered), "scheduled" (fixed intervals), or "disabled"</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_BANDWIDTH_BASELINE_INTERVAL">Baseline Interval</label>
+                    <input class="form-input" type="text" id="PINGPONG_BANDWIDTH_BASELINE_INTERVAL" name="PINGPONG_BANDWIDTH_BASELINE_INTERVAL" placeholder="6h">
+                    <span class="form-hint">How often to run baseline bandwidth tests in event mode</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_BANDWIDTH_MIN_NDT7_INTERVAL">Min NDT7 Interval</label>
+                    <input class="form-input" type="text" id="PINGPONG_BANDWIDTH_MIN_NDT7_INTERVAL" name="PINGPONG_BANDWIDTH_MIN_NDT7_INTERVAL" placeholder="4h">
+                    <span class="form-hint">Minimum time between NDT7 tests in event mode</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_BANDWIDTH_MIN_BLOAT_INTERVAL">Min Bufferbloat Interval</label>
+                    <input class="form-input" type="text" id="PINGPONG_BANDWIDTH_MIN_BLOAT_INTERVAL" name="PINGPONG_BANDWIDTH_MIN_BLOAT_INTERVAL" placeholder="1h">
+                    <span class="form-hint">Minimum time between bufferbloat tests in event mode</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_BANDWIDTH_TRIGGER_COOLDOWN">Trigger Cooldown</label>
+                    <input class="form-input" type="text" id="PINGPONG_BANDWIDTH_TRIGGER_COOLDOWN" name="PINGPONG_BANDWIDTH_TRIGGER_COOLDOWN" placeholder="30m">
+                    <span class="form-hint">Minimum time between trigger-based bandwidth tests</span>
                 </div>
             </div>
         </div>
@@ -109,6 +174,11 @@
                     <label class="form-label" for="PINGPONG_ALERT_JITTER_THRESHOLD">Jitter Threshold</label>
                     <input class="form-input" type="text" id="PINGPONG_ALERT_JITTER_THRESHOLD" name="PINGPONG_ALERT_JITTER_THRESHOLD" placeholder="30">
                     <span class="form-hint">Milliseconds</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="PINGPONG_ALERT_BUFFERBLOAT_GRADE">Bufferbloat Alert Grade</label>
+                    <input class="form-input" type="text" id="PINGPONG_ALERT_BUFFERBLOAT_GRADE" name="PINGPONG_ALERT_BUFFERBLOAT_GRADE" placeholder="D">
+                    <span class="form-hint">Alert when grade is at or below this (A+, A, B, C, D, F). Default: D.</span>
                 </div>
             </div>
         </div>

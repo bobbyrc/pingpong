@@ -25,7 +25,7 @@
         <!-- Speed Test Card -->
         <div class="card card-large">
             <div class="card-header">
-                <h3 class="card-title">Speed Test</h3>
+                <h3 class="card-title">Bandwidth</h3>
                 <span class="card-subtitle" id="speedtest-last-update"></span>
             </div>
             <div class="card-body">
@@ -51,17 +51,41 @@
                 </div>
                 <div class="metric-row metric-row-secondary">
                     <div class="metric metric-small">
-                        <span class="metric-value-sm loading" id="speedtest-latency">--</span>
-                        <span class="metric-label">Latency <span class="metric-unit">ms</span></span>
+                        <span class="metric-value-sm loading" id="speedtest-minrtt">--</span>
+                        <span class="metric-label">Min RTT <span class="metric-unit">ms</span></span>
                     </div>
                     <div class="metric metric-small">
-                        <span class="metric-value-sm loading" id="speedtest-jitter">--</span>
-                        <span class="metric-label">Jitter <span class="metric-unit">ms</span></span>
+                        <span class="metric-value-sm loading" id="speedtest-retrans">--</span>
+                        <span class="metric-label">Retransmission <span class="metric-unit">%</span></span>
+                    </div>
+                    <div class="metric metric-small" id="max-download-wrapper" style="display:none">
+                        <span class="metric-value-sm" id="max-download-speed">--</span>
+                        <span class="metric-label">Max Download <span class="metric-unit">Mbps</span></span>
                     </div>
                 </div>
                 <div class="speedtest-server" id="speedtest-server">
                     <span class="speedtest-server-label">Server:</span>
                     <span id="speedtest-server-name">--</span>
+                </div>
+                <div class="bufferbloat-section" id="bufferbloat-section" style="display:none">
+                    <div class="metric-row metric-row-secondary" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+                        <div class="metric metric-small">
+                            <span class="metric-value-sm" id="bufferbloat-grade">--</span>
+                            <span class="metric-label">Bufferbloat Grade</span>
+                        </div>
+                        <div class="metric metric-small">
+                            <span class="metric-value-sm" id="bufferbloat-latency-increase">--</span>
+                            <span class="metric-label">Latency Increase <span class="metric-unit">ms</span></span>
+                        </div>
+                        <div class="metric metric-small">
+                            <span class="metric-value-sm" id="bufferbloat-idle">--</span>
+                            <span class="metric-label">Idle <span class="metric-unit">ms</span></span>
+                        </div>
+                        <div class="metric metric-small">
+                            <span class="metric-value-sm" id="bufferbloat-loaded">--</span>
+                            <span class="metric-label">Loaded <span class="metric-unit">ms</span></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

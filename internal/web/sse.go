@@ -123,7 +123,7 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 		}
 	}
 
-	// Ping latency per target
+	// Ping latency per target (labelled metric)
 	for _, mv := range snap.Metrics["pingpong_ping_latency_ms"] {
 		target := ""
 		if mv.Labels != nil {
@@ -137,22 +137,38 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 		}
 	}
 
-	// Download speed
-	for _, mv := range snap.Metrics["pingpong_download_speed_mbps"] {
-		record("download_speed", "", mv.Value)
-		if shouldPrune {
-			if err := b.history.Prune("download_speed", "", keep); err != nil {
-				slog.Error("failed to prune download history", "error", err)
+	// Scalar metrics: record and prune via table-driven loop.
+	// Gate bandwidth-related series on a "has real data" signal to avoid
+	// recording default gauge zeros before any test has run.
+	hasNDT7 := len(snap.Metrics["pingpong_ndt7_info"]) > 0
+	hasBloat := len(snap.Metrics["pingpong_bufferbloat_grade"]) > 0 &&
+		snap.Metrics["pingpong_bufferbloat_grade"][0].Value > 0
+	hasTP := len(snap.Metrics["pingpong_max_download_speed_mbps"]) > 0 &&
+		snap.Metrics["pingpong_max_download_speed_mbps"][0].Value > 0
+
+	type historySpec struct {
+		promName string
+		seriesID string
+		gate     bool
+	}
+	specs := []historySpec{
+		{"pingpong_download_speed_mbps", "download_speed", hasNDT7},
+		{"pingpong_upload_speed_mbps", "upload_speed", hasNDT7},
+		{"pingpong_ndt7_download_speed_mbps", "ndt7_download", hasNDT7},
+		{"pingpong_ndt7_upload_speed_mbps", "ndt7_upload", hasNDT7},
+		{"pingpong_bufferbloat_grade", "bufferbloat_grade", hasBloat},
+		{"pingpong_bufferbloat_latency_increase_ms", "bufferbloat_latency_increase", hasBloat},
+		{"pingpong_max_download_speed_mbps", "max_download_speed", hasTP},
+	}
+	for _, spec := range specs {
+		if spec.gate {
+			for _, mv := range snap.Metrics[spec.promName] {
+				record(spec.seriesID, "", mv.Value)
 			}
 		}
-	}
-
-	// Upload speed
-	for _, mv := range snap.Metrics["pingpong_upload_speed_mbps"] {
-		record("upload_speed", "", mv.Value)
 		if shouldPrune {
-			if err := b.history.Prune("upload_speed", "", keep); err != nil {
-				slog.Error("failed to prune upload history", "error", err)
+			if err := b.history.Prune(spec.seriesID, "", keep); err != nil {
+				slog.Error("failed to prune history", "series", spec.seriesID, "error", err)
 			}
 		}
 	}

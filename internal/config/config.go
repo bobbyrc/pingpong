@@ -17,7 +17,6 @@ type Config struct {
 	DNSTargets        []string
 	DNSServers        []string
 	TracerouteTarget  string
-	SpeedtestServerID string
 
 	PingInterval       time.Duration
 	SpeedtestInterval  time.Duration
@@ -35,6 +34,25 @@ type Config struct {
 
 	AppriseURL  string
 	AppriseURLs string
+
+	// Bufferbloat
+	BufferbloatTarget      string
+	BufferbloatDownloadURL string
+	BufferbloatInterval    time.Duration
+	AlertBufferbloatGrade  string
+
+	// Multi-stream throughput
+	ThroughputInterval    time.Duration
+	ThroughputDownloadURL string
+	ThroughputStreams     int
+	ThroughputDuration    time.Duration
+
+	// Bandwidth orchestrator
+	BandwidthMode             string
+	BandwidthBaselineInterval time.Duration
+	BandwidthMinNDT7Interval  time.Duration
+	BandwidthMinBloatInterval time.Duration
+	BandwidthTriggerCooldown  time.Duration
 
 	ListenAddr string
 	DataDir    string
@@ -85,7 +103,6 @@ func Load() *Config {
 		DNSTargets:               loadDNSTargets(),
 		DNSServers:               loadDNSServers(),
 		TracerouteTarget:         getString("PINGPONG_TRACEROUTE_TARGET", "1.1.1.1"),
-		SpeedtestServerID:        getString("PINGPONG_SPEEDTEST_SERVER_ID", ""),
 		PingInterval:             getDuration("PINGPONG_PING_INTERVAL", 60*time.Second),
 		SpeedtestInterval:        getDuration("PINGPONG_SPEEDTEST_INTERVAL", 30*time.Minute),
 		DNSInterval:              getDuration("PINGPONG_DNS_INTERVAL", 5*time.Minute),
@@ -100,6 +117,19 @@ func Load() *Config {
 		AlertRetryInterval:       getDuration("PINGPONG_ALERT_RETRY_INTERVAL", 60*time.Second),
 		AppriseURL:               getString("PINGPONG_APPRISE_URL", "http://apprise:8000"),
 		AppriseURLs:              getString("PINGPONG_APPRISE_URLS", ""),
+		BufferbloatTarget:        getString("PINGPONG_BUFFERBLOAT_TARGET", ""),
+		BufferbloatDownloadURL:   getString("PINGPONG_BUFFERBLOAT_DOWNLOAD_URL", "https://speed.cloudflare.com/__down?bytes=100000000"),
+		BufferbloatInterval:      getDuration("PINGPONG_BUFFERBLOAT_INTERVAL", 6*time.Hour),
+		AlertBufferbloatGrade:    getString("PINGPONG_ALERT_BUFFERBLOAT_GRADE", "D"),
+		ThroughputInterval:       getDuration("PINGPONG_THROUGHPUT_INTERVAL", 24*time.Hour),
+		ThroughputDownloadURL:    getString("PINGPONG_THROUGHPUT_DOWNLOAD_URL", ""),
+		ThroughputStreams:        clampInt(getInt("PINGPONG_THROUGHPUT_STREAMS", 4), 1, 16),
+		ThroughputDuration:       getDuration("PINGPONG_THROUGHPUT_DURATION", 10*time.Second),
+		BandwidthMode:             getString("PINGPONG_BANDWIDTH_MODE", "event"),
+		BandwidthBaselineInterval: getDuration("PINGPONG_BANDWIDTH_BASELINE_INTERVAL", 6*time.Hour),
+		BandwidthMinNDT7Interval:  getDuration("PINGPONG_BANDWIDTH_MIN_NDT7_INTERVAL", 4*time.Hour),
+		BandwidthMinBloatInterval: getDuration("PINGPONG_BANDWIDTH_MIN_BLOAT_INTERVAL", 1*time.Hour),
+		BandwidthTriggerCooldown:  getDuration("PINGPONG_BANDWIDTH_TRIGGER_COOLDOWN", 30*time.Minute),
 		ListenAddr:               getString("PINGPONG_LISTEN_ADDR", ":4040"),
 		DataDir:                  getString("PINGPONG_DATA_DIR", "/data"),
 		EnvFile:                  envFile,
@@ -148,6 +178,16 @@ func getInt(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+func clampInt(v, min, max int) int {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
 }
 
 func getFloat(key string, fallback float64) float64 {

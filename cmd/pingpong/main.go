@@ -21,6 +21,49 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const (
+	bandwidthModeScheduled = "scheduled"
+	bandwidthModeEvent     = "event"
+)
+
+func recordNDT7Result(m *metrics.Metrics, engine *alerter.Engine, result collector.NDT7Result) {
+	m.NDT7DownloadSpeed.Set(result.DownloadMbps)
+	m.NDT7UploadSpeed.Set(result.UploadMbps)
+	m.NDT7MinRTT.Set(result.MinRTTMs)
+	m.NDT7RetransRate.Set(result.RetransRate)
+
+	// Backward-compat aliases
+	m.DownloadSpeed.Set(result.DownloadMbps)
+	m.UploadSpeed.Set(result.UploadMbps)
+
+	m.NDT7Info.Reset()
+	if result.ServerName != "" {
+		m.NDT7Info.WithLabelValues(result.ServerName).Set(1)
+	}
+
+	engine.EvaluateNDT7(result)
+}
+
+func recordBufferbloatResult(m *metrics.Metrics, engine *alerter.Engine, result collector.BufferbloatResult) {
+	m.BufferbloatLatencyIncrease.Set(result.LatencyIncreaseMs)
+	m.BufferbloatGrade.Set(collector.GradeToNumeric(result.Grade))
+	m.BufferbloatDownloadSpeed.Set(result.DownloadMbps)
+	m.BufferbloatIdleLatency.Set(result.IdleLatencyMs)
+	m.BufferbloatLoadedLatency.Set(result.LoadedLatencyMs)
+
+	engine.EvaluateBufferbloat(result)
+}
+
+func resolveBufferbloatTarget(cfg *config.Config) string {
+	if cfg.BufferbloatTarget != "" {
+		return cfg.BufferbloatTarget
+	}
+	if len(cfg.PingTargets) > 0 {
+		return cfg.PingTargets[0]
+	}
+	return ""
+}
+
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -36,8 +79,8 @@ func main() {
 		"dns_targets", cfg.DNSTargets,
 		"dns_servers", cfg.DNSServers,
 		"dns_interval", cfg.DNSInterval,
-		"speedtest_interval", cfg.SpeedtestInterval,
-		"speedtest_server_id", cfg.SpeedtestServerID,
+		"ndt7_interval", cfg.SpeedtestInterval,
+		"bandwidth_mode", cfg.BandwidthMode,
 		"traceroute_target", cfg.TracerouteTarget,
 		"traceroute_interval", cfg.TracerouteInterval,
 	)
@@ -54,7 +97,7 @@ func main() {
 	m := metrics.New(reg)
 
 	pingCollector := collector.NewPingCollector(cfg.PingTargets, cfg.PingCount)
-	speedCollector := collector.NewSpeedtestCollector(cfg.SpeedtestServerID)
+	ndt7Collector := collector.NewNDT7Collector()
 	dnsCollector := collector.NewDNSCollector(cfg.DNSTargets, cfg.DNSServers)
 	traceCollector := collector.NewTracerouteCollector(cfg.TracerouteTarget)
 
@@ -132,6 +175,84 @@ func main() {
 	flushCh := make(chan struct{}, 1)
 	connState := engine.ConnState()
 
+	// Channel for orchestrator trigger events (event mode only)
+	var orchTriggerCh chan collector.TriggerEvent
+	var orchestrator *collector.BandwidthOrchestrator
+
+	bandwidthMode := cfg.BandwidthMode
+
+	// Resolve bufferbloat target once for both modes
+	bbTarget := resolveBufferbloatTarget(cfg)
+
+	// Set up orchestrator for event mode
+	if bandwidthMode == bandwidthModeEvent {
+		orchCfg := collector.DefaultOrchestratorConfig()
+		orchCfg.BaselineInterval = cfg.BandwidthBaselineInterval
+		orchCfg.MinNDT7Interval = cfg.BandwidthMinNDT7Interval
+		orchCfg.MinBloatInterval = cfg.BandwidthMinBloatInterval
+		orchCfg.TriggerCooldown = cfg.BandwidthTriggerCooldown
+
+		var bbCollector *collector.BufferbloatCollector
+		if cfg.BufferbloatDownloadURL != "" && bbTarget != "" {
+			bbCollector = collector.NewBufferbloatCollector(bbTarget, cfg.BufferbloatDownloadURL)
+		}
+
+		orchestrator = collector.NewBandwidthOrchestrator(ndt7Collector, bbCollector, orchCfg)
+		orchTriggerCh = make(chan collector.TriggerEvent, 4)
+
+		// Result consumer goroutine
+		resultCh := make(chan collector.BandwidthResult, 4)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case result := <-resultCh:
+					if result.NDT7 != nil || result.Bufferbloat != nil {
+						m.BandwidthTestTriggers.WithLabelValues(string(result.Trigger.Reason)).Inc()
+					}
+					if result.NDT7 != nil {
+						recordNDT7Result(m, engine, *result.NDT7)
+					}
+					if result.NDT7Err != nil {
+						m.NDT7Failures.Inc()
+					}
+					if result.Bufferbloat != nil {
+						recordBufferbloatResult(m, engine, *result.Bufferbloat)
+					}
+					if result.BloatErr != nil {
+						m.BufferbloatFailures.Inc()
+					}
+				}
+			}
+		}()
+
+		// Orchestrator main loop
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			orchestrator.Run(ctx, resultCh)
+		}()
+
+		// Trigger handler goroutine
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case trigger := <-orchTriggerCh:
+					orchestrator.HandleTrigger(ctx, trigger, resultCh)
+				}
+			}
+		}()
+	} else if bandwidthMode != bandwidthModeScheduled {
+		slog.Info("bandwidth testing disabled", "mode", bandwidthMode)
+	}
+
 	// Ping loop
 	wg.Add(1)
 	go func() {
@@ -173,6 +294,9 @@ func main() {
 				case flushCh <- struct{}{}:
 				default:
 				}
+				if orchestrator != nil {
+					orchestrator.ReportConnectionRecovery(orchTriggerCh)
+				}
 			} else if !allDown {
 				m.ConnectionUp.Set(1)
 			}
@@ -183,6 +307,10 @@ func main() {
 			engine.EvaluatePing(results)
 			if isDown {
 				engine.EvaluateDowntime(true, ds)
+			}
+
+			if orchestrator != nil {
+				orchestrator.ReportPing(results, orchTriggerCh)
 			}
 		}
 
@@ -197,43 +325,35 @@ func main() {
 		}
 	}()
 
-	// Speedtest loop
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		ticker := time.NewTicker(cfg.SpeedtestInterval)
-		defer ticker.Stop()
+	// NDT7 speed test loop (scheduled mode only)
+	if bandwidthMode == bandwidthModeScheduled {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ticker := time.NewTicker(cfg.SpeedtestInterval)
+			defer ticker.Stop()
 
-		runSpeed := func() {
-			result, err := speedCollector.Collect(ctx)
-			if err != nil {
-				slog.Error("speedtest failed", "error", err)
-				m.SpeedtestFailures.Inc()
-				return
-			}
-			m.DownloadSpeed.Set(result.DownloadMbps)
-			m.UploadSpeed.Set(result.UploadMbps)
-			m.SpeedtestLatency.Set(result.LatencyMs)
-			m.SpeedtestJitter.Set(result.JitterMs)
-
-			m.SpeedtestInfo.Reset()
-			if result.ServerName != "" || result.ISP != "" {
-				m.SpeedtestInfo.WithLabelValues(result.ServerName, result.ServerLocation, result.ISP).Set(1)
+			runNDT7 := func() {
+				result, err := ndt7Collector.Collect(ctx)
+				if err != nil {
+					slog.Error("ndt7 test failed", "error", err)
+					m.NDT7Failures.Inc()
+					return
+				}
+				recordNDT7Result(m, engine, result)
 			}
 
-			engine.EvaluateSpeed(result)
-		}
-
-		runSpeed()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				runSpeed()
+			runNDT7()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					runNDT7()
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	// DNS loop
 	wg.Add(1)
@@ -249,6 +369,10 @@ func main() {
 			}
 			for _, f := range failures {
 				m.DNSFailures.WithLabelValues(f.Target, f.Server).Inc()
+			}
+
+			if orchestrator != nil {
+				orchestrator.ReportDNS(results, orchTriggerCh)
 			}
 		}
 
@@ -300,6 +424,102 @@ func main() {
 			}
 		}
 	}()
+
+	// Bufferbloat loop (scheduled mode only)
+	if bandwidthMode == bandwidthModeScheduled && cfg.BufferbloatDownloadURL != "" && bbTarget != "" {
+		bbCollector := collector.NewBufferbloatCollector(bbTarget, cfg.BufferbloatDownloadURL)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// 60-second startup delay
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(60 * time.Second):
+			}
+
+			if cfg.BufferbloatInterval <= 0 {
+				slog.Warn("bufferbloat monitoring disabled due to non-positive interval")
+				return
+			}
+
+			ticker := time.NewTicker(cfg.BufferbloatInterval)
+			defer ticker.Stop()
+
+			runBB := func() {
+				result, err := bbCollector.Collect(ctx)
+				if err != nil {
+					slog.Error("bufferbloat test failed", "error", err)
+					m.BufferbloatFailures.Inc()
+					return
+				}
+				recordBufferbloatResult(m, engine, result)
+			}
+
+			runBB()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					runBB()
+				}
+			}
+		}()
+		slog.Info("bufferbloat monitoring enabled", "target", bbTarget, "interval", cfg.BufferbloatInterval)
+	}
+
+	// Multi-stream throughput loop
+	if cfg.ThroughputDownloadURL != "" {
+		tpCollector := collector.NewThroughputCollector(cfg.ThroughputDownloadURL, cfg.ThroughputStreams, cfg.ThroughputDuration)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// 2-minute startup delay
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Minute):
+			}
+
+			if cfg.ThroughputInterval <= 0 {
+				slog.Warn("throughput monitoring disabled due to non-positive interval")
+				return
+			}
+
+			ticker := time.NewTicker(cfg.ThroughputInterval)
+			defer ticker.Stop()
+
+			runTP := func() {
+				result, err := tpCollector.Collect(ctx)
+				if err != nil {
+					slog.Error("throughput test failed", "error", err)
+					m.ThroughputFailures.Inc()
+					return
+				}
+				m.MaxDownloadSpeed.Set(result.DownloadMbps)
+				m.ThroughputStreams.Set(float64(result.Streams))
+
+				slog.Info("throughput test complete",
+					"download_mbps", result.DownloadMbps,
+					"streams", result.Streams,
+					"duration", result.DurationSecs,
+					"bytes", result.BytesTotal,
+				)
+			}
+
+			runTP()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					runTP()
+				}
+			}
+		}()
+		slog.Info("throughput monitoring enabled", "interval", cfg.ThroughputInterval, "streams", cfg.ThroughputStreams)
+	}
 
 	// Alert retry loop
 	wg.Add(1)

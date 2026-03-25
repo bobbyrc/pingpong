@@ -31,9 +31,6 @@ func TestMetricsRegistration(t *testing.T) {
 	if m.UploadSpeed == nil {
 		t.Fatal("UploadSpeed gauge should not be nil")
 	}
-	if m.SpeedtestLatency == nil {
-		t.Fatal("SpeedtestLatency gauge should not be nil")
-	}
 	if m.DNSResolution == nil {
 		t.Fatal("DNSResolution gauge should not be nil")
 	}
@@ -73,15 +70,6 @@ func TestMetricsRegistration(t *testing.T) {
 	_ = families
 }
 
-func TestSpeedtestJitterNotNil(t *testing.T) {
-	reg := prometheus.NewRegistry()
-	m := New(reg)
-
-	if m.SpeedtestJitter == nil {
-		t.Fatal("SpeedtestJitter gauge should not be nil")
-	}
-}
-
 func TestMetricNames(t *testing.T) {
 	reg := prometheus.NewRegistry()
 	m := New(reg)
@@ -95,8 +83,6 @@ func TestMetricNames(t *testing.T) {
 	m.PacketLoss.WithLabelValues("8.8.8.8").Set(1)
 	m.DownloadSpeed.Set(1)
 	m.UploadSpeed.Set(1)
-	m.SpeedtestLatency.Set(1)
-	m.SpeedtestJitter.Set(1)
 	m.ConnectionUp.Set(1)
 	m.DowntimeTotal.Inc()
 	m.ConnectionFlaps.Inc()
@@ -126,8 +112,6 @@ func TestMetricNames(t *testing.T) {
 		"pingpong_packet_loss_percent",
 		"pingpong_download_speed_mbps",
 		"pingpong_upload_speed_mbps",
-		"pingpong_speedtest_latency_ms",
-		"pingpong_speedtest_jitter_ms",
 		"pingpong_connection_up",
 		"pingpong_downtime_seconds_total",
 		"pingpong_connection_flaps_total",

@@ -128,6 +128,70 @@ func TestEngineEvaluateSpeed(t *testing.T) {
 	}
 }
 
+func TestEngineEvaluateNDT7_BelowThreshold(t *testing.T) {
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
+		AlertSpeedThreshold: 50,
+		AlertCooldown:       1 * time.Second,
+	})
+
+	result := collector.NDT7Result{
+		DownloadMbps: 25.0,
+		UploadMbps:   10.0,
+	}
+
+	engine.EvaluateNDT7(result)
+
+	pending, _ := q.Pending()
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 alert for slow NDT7 speed, got %d", len(pending))
+	}
+	if pending[0].AlertType != "speed" {
+		t.Fatalf("expected alert type speed, got %s", pending[0].AlertType)
+	}
+}
+
+func TestEngineEvaluateNDT7_AboveThreshold(t *testing.T) {
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
+		AlertSpeedThreshold: 50,
+		AlertCooldown:       1 * time.Second,
+	})
+
+	result := collector.NDT7Result{
+		DownloadMbps: 100.0,
+		UploadMbps:   25.0,
+	}
+
+	engine.EvaluateNDT7(result)
+
+	pending, _ := q.Pending()
+	if len(pending) != 0 {
+		t.Fatalf("expected 0 alerts for fast NDT7 speed, got %d", len(pending))
+	}
+}
+
+func TestEngineEvaluateNDT7_SharesCooldownWithSpeed(t *testing.T) {
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
+		AlertSpeedThreshold: 50,
+		AlertCooldown:       5 * time.Minute,
+	})
+
+	// Fire via EvaluateNDT7
+	engine.EvaluateNDT7(collector.NDT7Result{DownloadMbps: 25.0})
+
+	pending, _ := q.Pending()
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 alert, got %d", len(pending))
+	}
+
+	// Try again — should be suppressed by cooldown (same "speed" key)
+	engine.EvaluateNDT7(collector.NDT7Result{DownloadMbps: 20.0})
+
+	pending, _ = q.Pending()
+	if len(pending) != 1 {
+		t.Fatalf("expected still 1 alert (cooldown active), got %d", len(pending))
+	}
+}
+
 func TestEngineDisabledThresholds(t *testing.T) {
 	engine, q := newTestEngine(t, dummyApprise, &config.Config{
 		AlertPacketLossThreshold: 0,
@@ -463,6 +527,89 @@ func TestProcessQueue_NilConnStateAlwaysProceeds(t *testing.T) {
 	}
 	if pending[0].RetryCount != 1 {
 		t.Fatalf("expected retry count 1 (attempted), got %d", pending[0].RetryCount)
+	}
+}
+
+func TestEvaluateBufferbloat_BadGrade(t *testing.T) {
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
+		AlertBufferbloatGrade: "D",
+		AlertCooldown:         1 * time.Second,
+	})
+
+	result := collector.BufferbloatResult{
+		IdleLatencyMs:     10.0,
+		LoadedLatencyMs:   410.0,
+		LatencyIncreaseMs: 400.0,
+		Grade:             "F",
+	}
+
+	engine.EvaluateBufferbloat(result)
+
+	pending, _ := q.Pending()
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 alert for bad bufferbloat grade, got %d", len(pending))
+	}
+	if pending[0].AlertType != "bufferbloat" {
+		t.Fatalf("expected alert type bufferbloat, got %s", pending[0].AlertType)
+	}
+}
+
+func TestEvaluateBufferbloat_GoodGrade(t *testing.T) {
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
+		AlertBufferbloatGrade: "D",
+		AlertCooldown:         1 * time.Second,
+	})
+
+	result := collector.BufferbloatResult{
+		IdleLatencyMs:     10.0,
+		LoadedLatencyMs:   30.0,
+		LatencyIncreaseMs: 20.0,
+		Grade:             "A",
+	}
+
+	engine.EvaluateBufferbloat(result)
+
+	pending, _ := q.Pending()
+	if len(pending) != 0 {
+		t.Fatalf("expected 0 alerts for good bufferbloat grade, got %d", len(pending))
+	}
+}
+
+func TestEvaluateBufferbloat_Disabled(t *testing.T) {
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
+		AlertBufferbloatGrade: "",
+		AlertCooldown:         1 * time.Second,
+	})
+
+	result := collector.BufferbloatResult{
+		Grade: "F",
+	}
+
+	engine.EvaluateBufferbloat(result)
+
+	pending, _ := q.Pending()
+	if len(pending) != 0 {
+		t.Fatalf("expected 0 alerts when bufferbloat alerting disabled, got %d", len(pending))
+	}
+}
+
+func TestEvaluateBufferbloat_ExactThreshold(t *testing.T) {
+	engine, q := newTestEngine(t, dummyApprise, &config.Config{
+		AlertBufferbloatGrade: "C",
+		AlertCooldown:         1 * time.Second,
+	})
+
+	// Grade C has numeric value 3, threshold C has numeric value 3.
+	// "At or below threshold" should alert.
+	result := collector.BufferbloatResult{
+		Grade: "C",
+	}
+
+	engine.EvaluateBufferbloat(result)
+
+	pending, _ := q.Pending()
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 alert when grade equals threshold, got %d", len(pending))
 	}
 }
 
