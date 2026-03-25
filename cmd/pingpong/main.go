@@ -214,8 +214,14 @@ func main() {
 					if result.NDT7 != nil {
 						recordNDT7Result(m, engine, *result.NDT7)
 					}
+					if result.NDT7Err != nil {
+						m.NDT7Failures.Inc()
+					}
 					if result.Bufferbloat != nil {
 						recordBufferbloatResult(m, engine, *result.Bufferbloat)
+					}
+					if result.BloatErr != nil {
+						m.BufferbloatFailures.Inc()
 					}
 				}
 			}

@@ -30,6 +30,8 @@ type BandwidthResult struct {
 	NDT7        *NDT7Result
 	Bufferbloat *BufferbloatResult
 	Trigger     TriggerEvent
+	NDT7Err     error // non-nil if NDT7 test was attempted but failed
+	BloatErr    error // non-nil if bufferbloat test was attempted but failed
 }
 
 // OrchestratorConfig holds tunable parameters for the orchestrator.
@@ -223,6 +225,7 @@ func (o *BandwidthOrchestrator) runTest(ctx context.Context, trigger TriggerEven
 	if canNDT7 {
 		ndt7Result, err := o.ndt7.Collect(ctx)
 		if err != nil {
+			result.NDT7Err = err
 			slog.Error("orchestrator NDT7 test failed", "reason", trigger.Reason, "error", err)
 		} else {
 			result.NDT7 = &ndt7Result
@@ -232,13 +235,14 @@ func (o *BandwidthOrchestrator) runTest(ctx context.Context, trigger TriggerEven
 	if canBloat {
 		bbResult, err := o.bufferbloat.Collect(ctx)
 		if err != nil {
+			result.BloatErr = err
 			slog.Error("orchestrator bufferbloat test failed", "reason", trigger.Reason, "error", err)
 		} else {
 			result.Bufferbloat = &bbResult
 		}
 	}
 
-	if result.NDT7 != nil || result.Bufferbloat != nil {
+	if canNDT7 || canBloat {
 		select {
 		case resultCh <- result:
 		default:

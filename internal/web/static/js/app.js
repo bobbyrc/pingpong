@@ -485,9 +485,12 @@
         var retransEntry = first(metrics, 'pingpong_ndt7_retransmission_rate');
         var infoEntry = first(metrics, 'pingpong_ndt7_info');
 
+        // Gate on infoEntry to avoid showing default gauge zeros before first NDT7 run
+        var hasNDT7Data = infoEntry && infoEntry.labels && infoEntry.labels.server_name;
+
         // Download
         var dlEl = document.getElementById('speedtest-download');
-        if (dlEl && dlEntry) {
+        if (dlEl && dlEntry && hasNDT7Data) {
             setText(dlEl, formatSpeed(dlEntry.value));
             removeLoading(dlEl);
             if (downloadHistory.length === 0 || downloadHistory[downloadHistory.length - 1] !== dlEntry.value) {
@@ -501,7 +504,7 @@
 
         // Upload
         var ulEl = document.getElementById('speedtest-upload');
-        if (ulEl && ulEntry) {
+        if (ulEl && ulEntry && hasNDT7Data) {
             setText(ulEl, formatSpeed(ulEntry.value));
             removeLoading(ulEl);
             if (uploadHistory.length === 0 || uploadHistory[uploadHistory.length - 1] !== ulEntry.value) {
@@ -516,7 +519,7 @@
         // Min RTT
         var rttEl = document.getElementById('speedtest-minrtt');
         if (rttEl) {
-            if (rttEntry) {
+            if (rttEntry && hasNDT7Data) {
                 setText(rttEl, formatLatency(rttEntry.value));
                 removeLoading(rttEl);
             } else {
@@ -527,7 +530,7 @@
         // Retransmission rate (display as percentage)
         var retransEl = document.getElementById('speedtest-retrans');
         if (retransEl) {
-            if (retransEntry && retransEntry.value != null && !isNaN(retransEntry.value)) {
+            if (retransEntry && hasNDT7Data && retransEntry.value != null && !isNaN(retransEntry.value)) {
                 setText(retransEl, (retransEntry.value * 100).toFixed(2));
                 removeLoading(retransEl);
             } else {
