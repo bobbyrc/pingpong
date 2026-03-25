@@ -84,6 +84,22 @@ func TestMetricNames(t *testing.T) {
 	m.TracerouteHops.WithLabelValues("8.8.8.8").Set(1)
 	m.TracerouteHopLatency.WithLabelValues("8.8.8.8", "1", "10.0.0.1").Set(1)
 	m.TracerouteFailures.Inc()
+	m.NDT7DownloadSpeed.Set(1)
+	m.NDT7UploadSpeed.Set(1)
+	m.NDT7MinRTT.Set(1)
+	m.NDT7RetransRate.Set(0.01)
+	m.NDT7Failures.Inc()
+	m.NDT7Info.WithLabelValues("ndt-mlab1-lga0t.mlab.autojoin.measurement-lab.org").Set(1)
+	m.BufferbloatLatencyIncrease.Set(10)
+	m.BufferbloatGrade.Set(5)
+	m.BufferbloatDownloadSpeed.Set(100)
+	m.BufferbloatIdleLatency.Set(5)
+	m.BufferbloatLoadedLatency.Set(15)
+	m.BufferbloatFailures.Inc()
+	m.MaxDownloadSpeed.Set(500)
+	m.ThroughputStreams.Set(4)
+	m.ThroughputFailures.Inc()
+	m.BandwidthTestTriggers.WithLabelValues("baseline").Inc()
 
 	families, err := reg.Gather()
 	if err != nil {
@@ -111,6 +127,22 @@ func TestMetricNames(t *testing.T) {
 		"pingpong_traceroute_hops",
 		"pingpong_traceroute_hop_latency_ms",
 		"pingpong_traceroute_failures_total",
+		"pingpong_ndt7_download_speed_mbps",
+		"pingpong_ndt7_upload_speed_mbps",
+		"pingpong_ndt7_min_rtt_ms",
+		"pingpong_ndt7_retransmission_rate",
+		"pingpong_ndt7_failures_total",
+		"pingpong_ndt7_info",
+		"pingpong_bufferbloat_latency_increase_ms",
+		"pingpong_bufferbloat_grade",
+		"pingpong_bufferbloat_download_speed_mbps",
+		"pingpong_bufferbloat_idle_latency_ms",
+		"pingpong_bufferbloat_loaded_latency_ms",
+		"pingpong_bufferbloat_failures_total",
+		"pingpong_max_download_speed_mbps",
+		"pingpong_throughput_streams",
+		"pingpong_throughput_failures_total",
+		"pingpong_bandwidth_test_triggers_total",
 	}
 
 	for _, name := range expected {

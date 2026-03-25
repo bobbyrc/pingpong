@@ -72,7 +72,7 @@
 | **Alert** | 80+ Notification Services | Powered by [Apprise](https://github.com/caronc/apprise) — Discord, Slack, Telegram, ntfy, email, Pushover, Gotify, and [many more](https://github.com/caronc/apprise/wiki) |
 | **UI** | Built-in Dashboard | Dark-themed real-time dashboard with SSE streaming, sparkline charts, bufferbloat grades, alert history, and config editor |
 | **Grafana** | Pre-built Dashboard | Published to [grafana.com](https://grafana.com/grafana/dashboards/24995) (ID 24995) — import in one click |
-| **Metrics** | 30 Prometheus Metrics | Expose everything to your existing monitoring stack via `/metrics` |
+| **Metrics** | 31 Prometheus Metrics | Expose everything to your existing monitoring stack via `/metrics` |
 | **Data** | SQLite Persistence | Alerts survive restarts, sparkline history is preserved, pending alerts auto-retry on reconnect |
 | **Deploy** | Multi-arch Docker | `linux/amd64` and `linux/arm64` — runs on Raspberry Pi, NAS, VM, bare metal |
 
@@ -398,9 +398,9 @@ PINGPONG_BANDWIDTH_BASELINE_INTERVAL=2h
 | `PINGPONG_ALERT_MAX_RETRIES` | Max delivery attempts for a failed alert | count | `30` |
 | `PINGPONG_ALERT_RETRY_INTERVAL` | Time between delivery retries | duration | `60s` |
 
-**Set any threshold to `0` (or empty string for grade) to disable that alert type entirely.**
+**Set any numeric threshold to `0` to disable that alert type entirely.** To disable bufferbloat alerts, set the grade to `0` (any unrecognized grade value disables the alert).
 
-Bufferbloat grade thresholds use letter grades: `A+`, `A`, `B`, `C`, `D`, `F`. Setting it to `D` means you'll be alerted when the grade is D or F. Setting it to `B` means you'll be alerted on B, C, D, or F.
+Bufferbloat grade thresholds use letter grades: `A+`, `A`, `B`, `C`, `D`, `F`. Setting it to `D` (the default) means you'll be alerted when the grade is D or F. Setting it to `B` means you'll be alerted on B, C, D, or F.
 
 ```env
 # Only alert on downtime and speed — disable the rest
@@ -409,7 +409,7 @@ PINGPONG_ALERT_SPEED_THRESHOLD=25
 PINGPONG_ALERT_PACKET_LOSS_THRESHOLD=0
 PINGPONG_ALERT_PING_THRESHOLD=0
 PINGPONG_ALERT_JITTER_THRESHOLD=0
-PINGPONG_ALERT_BUFFERBLOAT_GRADE=
+PINGPONG_ALERT_BUFFERBLOAT_GRADE=0
 
 # Alert on even moderate bufferbloat
 PINGPONG_ALERT_BUFFERBLOAT_GRADE=C
@@ -512,7 +512,7 @@ PINGPONG_APPRISE_URLS=discord://webhook_id/token,ntfy://my-alerts,tgram://bot/ch
 | High latency | Avg ping > threshold (per target) | 100ms | Set to `0` |
 | Low download speed | NDT7 download Mbps < threshold | 50 Mbps | Set to `0` |
 | High jitter | Jitter > threshold (per target) | 30ms | Set to `0` |
-| Bufferbloat detected | Grade at or below threshold | D | Set to empty string |
+| Bufferbloat detected | Grade at or below threshold | D | Set to `0` |
 
 ---
 
@@ -956,7 +956,7 @@ docker compose logs pingpong | grep -i ndt7
 ```
 
 **Common causes:**
-- **First run:** The first NDT7 test takes ~20 seconds. In event mode, it runs on startup.
+- **First run:** The first NDT7 test takes ~20 seconds. In event mode, the initial baseline starts ~30 seconds after startup, and anomaly-triggered tests only fire after enough warmup samples — so it's normal for speed metrics to be empty for the first minute or two.
 - **M-Lab server unreachable:** NDT7 auto-discovers and connects to the nearest M-Lab server. If your network blocks non-standard ports or has aggressive firewalls, the test may fail.
 - **Rate limiting:** M-Lab has usage policies. The default minimum interval of 4 hours between NDT7 tests respects these limits. Lowering `PINGPONG_BANDWIDTH_MIN_NDT7_INTERVAL` below 1 hour is not recommended.
 - **In scheduled mode:** Make sure `PINGPONG_SPEEDTEST_INTERVAL` is set to a reasonable value (default `30m`).
