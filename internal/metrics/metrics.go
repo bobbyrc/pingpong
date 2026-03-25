@@ -15,11 +15,9 @@ type Metrics struct {
 	DowntimeTotal        prometheus.Counter
 	TracerouteHops       *prometheus.GaugeVec
 	TracerouteHopLatency *prometheus.GaugeVec
-	DNSFailures          *prometheus.CounterVec
-	SpeedtestFailures    prometheus.Counter
-	TracerouteFailures   prometheus.Counter
-	ConnectionFlaps      prometheus.Counter
-	SpeedtestInfo        *prometheus.GaugeVec
+	DNSFailures        *prometheus.CounterVec
+	TracerouteFailures prometheus.Counter
+	ConnectionFlaps    prometheus.Counter
 
 	// NDT7 metrics
 	NDT7DownloadSpeed prometheus.Gauge
@@ -100,10 +98,6 @@ func New(reg prometheus.Registerer) *Metrics {
 			Name: "pingpong_dns_failures_total",
 			Help: "Total DNS lookup failures",
 		}, []string{"target", "server"}),
-		SpeedtestFailures: prometheus.NewCounter(prometheus.CounterOpts{
-			Name: "pingpong_speedtest_failures_total",
-			Help: "Total speedtest execution failures",
-		}),
 		TracerouteFailures: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "pingpong_traceroute_failures_total",
 			Help: "Total traceroute execution failures",
@@ -112,11 +106,6 @@ func New(reg prometheus.Registerer) *Metrics {
 			Name: "pingpong_connection_flaps_total",
 			Help: "Total connection state transitions (up/down flaps)",
 		}),
-		SpeedtestInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "pingpong_speedtest_info",
-			Help: "Speedtest server metadata",
-		}, []string{"server_name", "server_location", "isp"}),
-
 		NDT7DownloadSpeed: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "pingpong_ndt7_download_speed_mbps",
 			Help: "NDT7 download speed in Mbps (single stream)",
@@ -193,7 +182,6 @@ func New(reg prometheus.Registerer) *Metrics {
 		m.DNSResolution, m.DNSFailures,
 		m.ConnectionUp, m.DowntimeTotal, m.ConnectionFlaps,
 		m.TracerouteHops, m.TracerouteHopLatency, m.TracerouteFailures,
-		m.SpeedtestFailures, m.SpeedtestInfo,
 		m.NDT7DownloadSpeed, m.NDT7UploadSpeed, m.NDT7MinRTT, m.NDT7RetransRate,
 		m.NDT7Failures, m.NDT7Info,
 		m.BufferbloatLatencyIncrease, m.BufferbloatGrade, m.BufferbloatDownloadSpeed,
