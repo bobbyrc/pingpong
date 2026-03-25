@@ -522,9 +522,13 @@
 
         // Retransmission rate (display as percentage)
         var retransEl = document.getElementById('speedtest-retrans');
-        if (retransEl && retransEntry) {
-            setText(retransEl, (retransEntry.value * 100).toFixed(2));
-            removeLoading(retransEl);
+        if (retransEl) {
+            if (retransEntry && retransEntry.value != null && !isNaN(retransEntry.value)) {
+                setText(retransEl, (retransEntry.value * 100).toFixed(2));
+                removeLoading(retransEl);
+            } else {
+                setText(retransEl, '--');
+            }
         }
 
         // Server info (NDT7)

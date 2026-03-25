@@ -55,6 +55,7 @@ func (b *BufferbloatCollector) Collect(ctx context.Context) (BufferbloatResult, 
 	defer loadCancel()
 
 	var totalBytes atomic.Int64
+	var dlErr atomic.Value // stores first download error
 	var downloadDone sync.WaitGroup
 	downloadStart := time.Now()
 
@@ -64,15 +65,17 @@ func (b *BufferbloatCollector) Collect(ctx context.Context) (BufferbloatResult, 
 		defer downloadDone.Done()
 		req, reqErr := http.NewRequestWithContext(loadCtx, "GET", b.downloadURL, nil)
 		if reqErr != nil {
+			dlErr.Store(reqErr)
 			return
 		}
 		resp, respErr := http.DefaultClient.Do(req)
 		if respErr != nil {
+			dlErr.Store(respErr)
 			return
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			slog.Debug("bufferbloat download returned non-2xx", "status", resp.StatusCode)
+			dlErr.Store(fmt.Errorf("download returned HTTP %d", resp.StatusCode))
 			return
 		}
 		buf := make([]byte, 64*1024)
@@ -108,6 +111,9 @@ func (b *BufferbloatCollector) Collect(ctx context.Context) (BufferbloatResult, 
 
 	downloaded := totalBytes.Load()
 	if downloaded == 0 {
+		if stored := dlErr.Load(); stored != nil {
+			return BufferbloatResult{}, fmt.Errorf("bufferbloat: download failed: %w", stored.(error))
+		}
 		return BufferbloatResult{}, fmt.Errorf("bufferbloat: download failed, no load was generated")
 	}
 

@@ -123,7 +123,7 @@ func Load() *Config {
 		AlertBufferbloatGrade:    getString("PINGPONG_ALERT_BUFFERBLOAT_GRADE", "D"),
 		ThroughputInterval:       getDuration("PINGPONG_THROUGHPUT_INTERVAL", 24*time.Hour),
 		ThroughputDownloadURL:    getString("PINGPONG_THROUGHPUT_DOWNLOAD_URL", ""),
-		ThroughputStreams:        getInt("PINGPONG_THROUGHPUT_STREAMS", 4),
+		ThroughputStreams:        clampInt(getInt("PINGPONG_THROUGHPUT_STREAMS", 4), 1, 16),
 		ThroughputDuration:       getDuration("PINGPONG_THROUGHPUT_DURATION", 10*time.Second),
 		BandwidthMode:             getString("PINGPONG_BANDWIDTH_MODE", "event"),
 		BandwidthBaselineInterval: getDuration("PINGPONG_BANDWIDTH_BASELINE_INTERVAL", 6*time.Hour),
@@ -178,6 +178,16 @@ func getInt(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+func clampInt(v, min, max int) int {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
 }
 
 func getFloat(key string, fallback float64) float64 {

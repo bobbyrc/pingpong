@@ -102,7 +102,7 @@ func (o *BandwidthOrchestrator) Run(ctx context.Context, resultCh chan<- Bandwid
 	case <-time.After(30 * time.Second):
 	}
 
-	o.runTest(ctx, TriggerBaseline, resultCh)
+	o.runTest(ctx, TriggerEvent{Reason: TriggerBaseline, Time: o.now()}, resultCh)
 
 	if o.cfg.BaselineInterval <= 0 {
 		slog.Warn("baseline interval is non-positive; disabling periodic baseline tests")
@@ -118,7 +118,7 @@ func (o *BandwidthOrchestrator) Run(ctx context.Context, resultCh chan<- Bandwid
 		case <-ctx.Done():
 			return
 		case <-baselineTicker.C:
-			o.runTest(ctx, TriggerBaseline, resultCh)
+			o.runTest(ctx, TriggerEvent{Reason: TriggerBaseline, Time: o.now()}, resultCh)
 		}
 	}
 }
@@ -201,9 +201,9 @@ func (o *BandwidthOrchestrator) maybeTrigger(reason TriggerReason, triggerCh cha
 }
 
 // runTest executes NDT7 and optionally bufferbloat tests, respecting minimum intervals.
-func (o *BandwidthOrchestrator) runTest(ctx context.Context, reason TriggerReason, resultCh chan<- BandwidthResult) {
+func (o *BandwidthOrchestrator) runTest(ctx context.Context, trigger TriggerEvent, resultCh chan<- BandwidthResult) {
 	result := BandwidthResult{
-		Trigger: TriggerEvent{Reason: reason, Time: o.now()},
+		Trigger: trigger,
 	}
 
 	o.mu.Lock()
@@ -223,7 +223,7 @@ func (o *BandwidthOrchestrator) runTest(ctx context.Context, reason TriggerReaso
 	if canNDT7 {
 		ndt7Result, err := o.ndt7.Collect(ctx)
 		if err != nil {
-			slog.Error("orchestrator NDT7 test failed", "reason", reason, "error", err)
+			slog.Error("orchestrator NDT7 test failed", "reason", trigger.Reason, "error", err)
 		} else {
 			result.NDT7 = &ndt7Result
 		}
@@ -232,7 +232,7 @@ func (o *BandwidthOrchestrator) runTest(ctx context.Context, reason TriggerReaso
 	if canBloat {
 		bbResult, err := o.bufferbloat.Collect(ctx)
 		if err != nil {
-			slog.Error("orchestrator bufferbloat test failed", "reason", reason, "error", err)
+			slog.Error("orchestrator bufferbloat test failed", "reason", trigger.Reason, "error", err)
 		} else {
 			result.Bufferbloat = &bbResult
 		}
@@ -249,5 +249,5 @@ func (o *BandwidthOrchestrator) runTest(ctx context.Context, reason TriggerReaso
 
 // HandleTrigger processes a trigger event by running tests.
 func (o *BandwidthOrchestrator) HandleTrigger(ctx context.Context, trigger TriggerEvent, resultCh chan<- BandwidthResult) {
-	o.runTest(ctx, trigger.Reason, resultCh)
+	o.runTest(ctx, trigger, resultCh)
 }
