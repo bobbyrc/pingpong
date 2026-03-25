@@ -109,6 +109,7 @@ func (o *BandwidthOrchestrator) Run(ctx context.Context, resultCh chan<- Bandwid
 	o.runTest(ctx, TriggerEvent{Reason: TriggerBaseline, Time: o.now()}, resultCh)
 
 	if o.cfg.BaselineInterval <= 0 {
+		// The initial baseline above still runs to seed anomaly detection baselines.
 		slog.Warn("baseline interval is non-positive; disabling periodic baseline tests")
 		<-ctx.Done()
 		return
