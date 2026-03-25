@@ -210,7 +210,9 @@ func main() {
 				case <-ctx.Done():
 					return
 				case result := <-resultCh:
-					m.BandwidthTestTriggers.WithLabelValues(string(result.Trigger.Reason)).Inc()
+					if result.NDT7 != nil || result.Bufferbloat != nil {
+						m.BandwidthTestTriggers.WithLabelValues(string(result.Trigger.Reason)).Inc()
+					}
 					if result.NDT7 != nil {
 						recordNDT7Result(m, engine, *result.NDT7)
 					}

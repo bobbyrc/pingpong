@@ -82,6 +82,10 @@ func (t *ThroughputCollector) Collect(ctx context.Context) (ThroughputResult, er
 	}
 
 	elapsed := time.Since(start)
+	// Cap at configured duration to avoid diluting throughput with teardown overhead
+	if elapsed > t.duration {
+		elapsed = t.duration
+	}
 	total := totalBytes.Load()
 
 	if total == 0 {

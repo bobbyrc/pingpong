@@ -94,8 +94,10 @@ func NewBandwidthOrchestrator(ndt7 *NDT7Collector, bb *BufferbloatCollector, cfg
 	}
 }
 
-// Run starts the orchestrator loop. It runs baseline tests on schedule and
-// listens for triggered tests via resultCh. Blocks until ctx is cancelled.
+// Run starts the orchestrator loop for baseline measurements. It schedules
+// an initial and periodic baseline bandwidth tests and sends their results
+// on resultCh. Anomaly-triggered tests are handled separately via
+// HandleTrigger. Blocks until ctx is cancelled.
 func (o *BandwidthOrchestrator) Run(ctx context.Context, resultCh chan<- BandwidthResult) {
 	// Run initial baseline after a short delay
 	select {
