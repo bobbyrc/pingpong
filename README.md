@@ -72,7 +72,7 @@
 | **Alert** | 80+ Notification Services | Powered by [Apprise](https://github.com/caronc/apprise) — Discord, Slack, Telegram, ntfy, email, Pushover, Gotify, and [many more](https://github.com/caronc/apprise/wiki) |
 | **UI** | Built-in Dashboard | Dark-themed real-time dashboard with SSE streaming, sparkline charts, bufferbloat grades, alert history, and config editor |
 | **Grafana** | Pre-built Dashboard | Published to [grafana.com](https://grafana.com/grafana/dashboards/24995) (ID 24995) — import in one click |
-| **Metrics** | 32 Prometheus Metrics | Expose everything to your existing monitoring stack via `/metrics` |
+| **Metrics** | 30 Prometheus Metrics | Expose everything to your existing monitoring stack via `/metrics` |
 | **Data** | SQLite Persistence | Alerts survive restarts, sparkline history is preserved, pending alerts auto-retry on reconnect |
 | **Deploy** | Multi-arch Docker | `linux/amd64` and `linux/arm64` — runs on Raspberry Pi, NAS, VM, bare metal |
 
@@ -651,8 +651,6 @@ Trigger reason labels: `baseline`, `latency_spike`, `jitter_spike`, `packet_loss
 | `pingpong_connection_up` | gauge | Whether the connection is up (1) or down (0) |
 | `pingpong_downtime_seconds_total` | counter | Total downtime in seconds |
 | `pingpong_connection_flaps_total` | counter | Total up/down state transitions |
-| `pingpong_speedtest_failures_total` | counter | Legacy (Ookla-era): registered but no longer updated in current runtime |
-| `pingpong_speedtest_info` | gauge | Legacy (Ookla-era): registered but no longer updated (labels: `server_name`, `server_location`, `isp`) |
 | `pingpong_traceroute_failures_total` | counter | Total traceroute execution failures |
 
 </details>
@@ -870,7 +868,7 @@ If you're upgrading from an older version of PingPong that used the Ookla Speedt
 - The Docker image is ~30MB smaller (no Ookla CLI)
 - You get additional metrics: minimum RTT, TCP retransmission rate, server info
 - `PINGPONG_SPEEDTEST_SERVER_ID` is no longer used (NDT7 auto-selects M-Lab servers)
-- The legacy metrics `pingpong_speedtest_latency_ms` and `pingpong_speedtest_jitter_ms` have been removed (NDT7 provides `pingpong_ndt7_min_rtt_ms` instead)
+- The legacy metrics `pingpong_speedtest_latency_ms`, `pingpong_speedtest_jitter_ms`, `pingpong_speedtest_failures_total`, and `pingpong_speedtest_info` have been removed (NDT7 provides `pingpong_ndt7_min_rtt_ms`, `pingpong_ndt7_failures_total`, and `pingpong_ndt7_info` instead)
 
 **What's the same:**
 - `pingpong_download_speed_mbps` and `pingpong_upload_speed_mbps` still work — they're populated from NDT7 results

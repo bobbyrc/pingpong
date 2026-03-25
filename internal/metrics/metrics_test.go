@@ -49,19 +49,12 @@ func TestMetricsRegistration(t *testing.T) {
 	if m.DNSFailures == nil {
 		t.Fatal("DNSFailures counter should not be nil")
 	}
-	if m.SpeedtestFailures == nil {
-		t.Fatal("SpeedtestFailures counter should not be nil")
-	}
 	if m.TracerouteFailures == nil {
 		t.Fatal("TracerouteFailures counter should not be nil")
 	}
 	if m.ConnectionFlaps == nil {
 		t.Fatal("ConnectionFlaps counter should not be nil")
 	}
-	if m.SpeedtestInfo == nil {
-		t.Fatal("SpeedtestInfo gauge should not be nil")
-	}
-
 	// Verify metrics were actually registered by gathering
 	families, err := reg.Gather()
 	if err != nil {
@@ -90,9 +83,7 @@ func TestMetricNames(t *testing.T) {
 	m.DNSFailures.WithLabelValues("example.com", "8.8.8.8").Inc()
 	m.TracerouteHops.WithLabelValues("8.8.8.8").Set(1)
 	m.TracerouteHopLatency.WithLabelValues("8.8.8.8", "1", "10.0.0.1").Set(1)
-	m.SpeedtestFailures.Inc()
 	m.TracerouteFailures.Inc()
-	m.SpeedtestInfo.WithLabelValues("server1", "location1", "isp1").Set(1)
 
 	families, err := reg.Gather()
 	if err != nil {
@@ -119,9 +110,7 @@ func TestMetricNames(t *testing.T) {
 		"pingpong_dns_failures_total",
 		"pingpong_traceroute_hops",
 		"pingpong_traceroute_hop_latency_ms",
-		"pingpong_speedtest_failures_total",
 		"pingpong_traceroute_failures_total",
-		"pingpong_speedtest_info",
 	}
 
 	for _, name := range expected {
