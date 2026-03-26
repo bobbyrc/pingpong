@@ -669,7 +669,7 @@ Trigger reason labels: `baseline`, `latency_spike`, `jitter_spike`, `packet_loss
 │  └──────┬──────┘             │                             │ │
 │         │                    │  Collectors:                │ │
 │  ┌──────▼──────┐             │  • Ping (ICMP, multi-target)│ │
-│  │   Grafana   │             │  • NDT7 (M-Lab speed test) │ │
+│  │   Grafana   │             │  • NDT7 (M-Lab speed test)  │ │
 │  │    :3000    │             │  • Bufferbloat (load test)  │ │
 │  └─────────────┘             │  • Throughput (multi-stream)│ │
 │                              │  • DNS (multi-server)       │ │
