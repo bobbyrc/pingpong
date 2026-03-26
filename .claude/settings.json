@@ -21,7 +21,8 @@
       "Bash(go test -short ./...)",
       "Bash(go vet ./...)",
       "Bash(go mod tidy)",
-      "Bash(go test -v ./...)"
+      "Bash(go test -v ./...)",
+      "Bash(make check:*)"
     ]
   }
 }

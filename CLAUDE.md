@@ -32,13 +32,13 @@ go mod tidy                      # Tidy dependencies
 
 ## Architecture
 
-PingPong is a single Go binary that monitors network quality (ping, DNS, speedtest, traceroute), exposes Prometheus metrics, and sends alert notifications via Apprise.
+PingPong is a single Go binary that monitors network quality (ping, DNS, bandwidth, bufferbloat, traceroute), exposes Prometheus metrics, and sends alert notifications via Apprise.
 
 ### Package Layout
 
-- **`cmd/pingpong/main.go`** — Entrypoint. Wires together all components, runs 7 concurrent goroutines (4 collectors + alert retry + SSE broadcaster + HTTP server) managed by `sync.WaitGroup` + `context.Context` for graceful shutdown. Contains connection state machine (`connDown`/`downSince` behind a mutex). Opens a shared `*sqlx.DB` via `alerter.OpenDB()` and passes it to both `alerter.NewQueue()` and `web.NewHistoryStore()`.
-- **`internal/collector/`** — Measurement collectors (ping, dns, speedtest, traceroute). Each has a `Collect(ctx)` method returning typed results. DNS collector supports multiple targets and servers (always includes system resolver). Speedtest and traceroute shell out to external binaries; ping uses `pro-bing`; DNS uses `net.Resolver`.
-- **`internal/metrics/`** — Prometheus metric registration. Single `Metrics` struct with 19 metrics (gauges, counters, gauge vecs), created with `metrics.New(registry)`.
+- **`cmd/pingpong/main.go`** — Entrypoint. Wires together all components, runs multiple concurrent goroutines (collectors + orchestrator + alert retry + SSE broadcaster + HTTP server) managed by `sync.WaitGroup` + `context.Context` for graceful shutdown. Contains connection state machine (`connDown`/`downSince` behind a mutex). Opens a shared `*sqlx.DB` via `alerter.OpenDB()` and passes it to both `alerter.NewQueue()` and `web.NewHistoryStore()`.
+- **`internal/collector/`** — Measurement collectors (ping, dns, ndt7, bufferbloat, throughput, traceroute). Each has a `Collect(ctx)` method returning typed results. DNS collector supports multiple targets and servers (always includes system resolver). Only traceroute shells out to an external binary; all others are pure Go (ping uses `pro-bing`; DNS uses `net.Resolver`; NDT7 uses `ndt7-client-go`; bufferbloat uses `pro-bing` + `net/http`; throughput uses parallel `net/http` GETs). A bandwidth `Orchestrator` coordinates NDT7 and bufferbloat tests in event-driven or scheduled mode.
+- **`internal/metrics/`** — Prometheus metric registration. Single `Metrics` struct with 31 metrics (gauges, counters, gauge vecs), created with `metrics.New(registry)`.
 - **`internal/alerter/`** — Three components:
   - `OpenDB()` — Package-level function that opens a SQLite database with WAL mode and `busy_timeout=5000`, returning a shared `*sqlx.DB` handle.
   - `Queue` — SQLite-backed durable alert queue. `NewQueue(db)` accepts a `*sqlx.DB` (does not own the connection lifecycle). Provides `Enqueue()`, `ProcessQueue()`, `RecentAlerts()` (paginated), `AllCooldowns()`, and `SeedCooldowns()`.
@@ -48,7 +48,7 @@ PingPong is a single Go binary that monitors network quality (ping, DNS, speedte
 - **`internal/web/`** — Web UI and real-time metric streaming. Key components:
   - `Handler` — Registers all HTTP routes on a stdlib `ServeMux`. Serves HTML pages (dashboard, alerts, config) via embedded Go templates and a dark-theme CSS stylesheet. Embeds templates and static assets at compile time (`//go:embed`).
   - `Broadcaster` — SSE server that gathers Prometheus metrics every 5 seconds, serializes snapshots as JSON, and pushes to all connected clients. Also records history for sparkline metrics (ping latency, download/upload speed) via `HistoryStore`.
-  - `HistoryStore` — SQLite-backed persistence for sparkline data in a `metric_history` table. Shares the same `*sqlx.DB` opened by `alerter.OpenDB()`. Provides `Record()`, `Load()`, `LoadAll()` (with window-function-based limiting), and `Prune()` (keeps latest 60 points per series, throttled to ~once per minute).
+  - `HistoryStore` — SQLite-backed persistence for sparkline data in a `metric_history` table. Shares the same `*sqlx.DB` opened by `alerter.OpenDB()`. Provides `Record()`, `LoadAll()` (with window-function-based limiting), and `Prune()` (keeps latest 60 points per series, throttled to ~once per minute).
   - `config_io.go` — Reads/writes `.env` files with a merge-update strategy (preserves comments and ordering).
 
 ### Data Flow
@@ -81,7 +81,7 @@ Broadcaster (every 5s) → gathers metrics from Prometheus registry → JSON sna
 
 ## Deployment
 
-Docker Compose stack with 4 containers: `pingpong` (Go app, port 4040), `prometheus` (9090), `grafana` (3000), `apprise` (8000). The Go container requires `NET_RAW` capability for ICMP. Multi-stage Dockerfile installs `traceroute`, `iputils-ping`, and Ookla `speedtest` CLI in the runtime image.
+Docker Compose stack with 4 containers: `pingpong` (Go app, port 4040), `prometheus` (9090), `grafana` (3000), `apprise` (8000). The Go container requires `NET_RAW` capability for ICMP. Multi-stage Dockerfile installs `traceroute` and `iputils-ping` in the runtime image. All bandwidth tests are pure Go (no external CLI binaries).
 
 ## Key Conventions
 
@@ -91,11 +91,11 @@ Docker Compose stack with 4 containers: `pingpong` (Go app, port 4040), `prometh
 - Prometheus metrics use a dedicated registry (not the global default)
 - Collectors are stateless; all state lives in metrics or the alert engine
 - Traceroute hop latency metric uses separate `hop` (number) and `address` labels; `TracerouteHopLatency.Reset()` is called before each cycle to avoid stale series
-- DNS resolution metric has `target` and `server` labels; failure counters track DNS, speedtest, and traceroute errors
+- DNS resolution metric has `target` and `server` labels; failure counters track DNS, NDT7, bufferbloat, throughput, and traceroute errors
 - Connection flap counter (`pingpong_connection_flaps_total`) tracks up/down state transitions
-- Speedtest info metric (`pingpong_speedtest_info`) exposes server name, location, and ISP as labels; `Reset()` is called before each update to avoid stale label sets
-- Speedtest collector supports optional server pinning via `PINGPONG_SPEEDTEST_SERVER_ID`
-- Speedtest and traceroute collectors shell out to CLI binaries only available inside the Docker image; their unit tests exercise output parsing only, not actual execution
+- NDT7 info metric (`pingpong_ndt7_info`) exposes server name as a label; `Reset()` is called before each update to avoid stale label sets
+- Bandwidth mode (`PINGPONG_BANDWIDTH_MODE`) controls test scheduling: `"event"` (orchestrator triggers on anomalies), `"scheduled"` (fixed intervals), or disabled
+- Only traceroute shells out to a CLI binary available inside the Docker image; NDT7, bufferbloat, and throughput collectors are pure Go
 - Ping integration tests require `CAP_NET_RAW` (root or Docker); use `-short` to skip them locally
 - Web UI uses embedded templates and static assets (`//go:embed`); no external build step or bundler
 - SSE clients receive an immediate snapshot on connect, then updates every 5s; slow clients have messages dropped (buffered channel, capacity 8)
