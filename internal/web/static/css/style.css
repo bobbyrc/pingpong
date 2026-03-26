@@ -1055,5 +1055,4 @@ button, input, select, textarea {
 .text-green { color: var(--green); }
 .text-yellow { color: var(--yellow); }
 .text-red { color: var(--red); }
-.text-muted { color: var(--text-muted); }
 .font-mono { font-family: var(--font-mono); }

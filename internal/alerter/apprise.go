@@ -31,7 +31,7 @@ func NewAppriseClient(baseURL, urls string) *AppriseClient {
 	}
 }
 
-func (a *AppriseClient) Send(title, body string) error {
+func (a *AppriseClient) send(title, body string) error {
 	payload := appriseRequest{
 		URLs:  a.urls,
 		Title: title,

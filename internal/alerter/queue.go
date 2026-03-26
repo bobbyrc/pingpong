@@ -1,8 +1,6 @@
 package alerter
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -83,7 +81,7 @@ func (q *Queue) Enqueue(cooldownKey, alertType, title, body string) error {
 	return err
 }
 
-func (q *Queue) Pending() ([]Alert, error) {
+func (q *Queue) pending() ([]Alert, error) {
 	var alerts []Alert
 	err := q.db.Select(&alerts,
 		"SELECT * FROM alerts WHERE status = 'pending' ORDER BY created_at ASC",
@@ -91,7 +89,7 @@ func (q *Queue) Pending() ([]Alert, error) {
 	return alerts, err
 }
 
-func (q *Queue) MarkSent(id int64) error {
+func (q *Queue) markSent(id int64) error {
 	_, err := q.db.Exec(
 		"UPDATE alerts SET status = 'sent', sent_at = CURRENT_TIMESTAMP WHERE id = ?",
 		id,
@@ -99,7 +97,7 @@ func (q *Queue) MarkSent(id int64) error {
 	return err
 }
 
-func (q *Queue) IncrementRetry(id int64) error {
+func (q *Queue) incrementRetry(id int64) error {
 	_, err := q.db.Exec(
 		"UPDATE alerts SET retry_count = retry_count + 1 WHERE id = ?",
 		id,
@@ -107,30 +105,12 @@ func (q *Queue) IncrementRetry(id int64) error {
 	return err
 }
 
-func (q *Queue) MarkFailedPermanent(id int64) error {
+func (q *Queue) markFailedPermanent(id int64) error {
 	_, err := q.db.Exec(
 		"UPDATE alerts SET status = 'failed_permanent' WHERE id = ?",
 		id,
 	)
 	return err
-}
-
-func (q *Queue) LastSentTime(cooldownKey string) (time.Time, bool, error) {
-	var sentAt *time.Time
-	err := q.db.Get(&sentAt,
-		"SELECT sent_at FROM alerts WHERE cooldown_key = ? AND status = 'sent' ORDER BY sent_at DESC LIMIT 1",
-		cooldownKey,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return time.Time{}, false, nil
-		}
-		return time.Time{}, false, err
-	}
-	if sentAt == nil {
-		return time.Time{}, false, nil
-	}
-	return *sentAt, true, nil
 }
 
 // RecentAlerts returns a paginated list of all alerts (any status), most recent first.
@@ -173,7 +153,7 @@ type cooldownEntry struct {
 }
 
 // AllCooldowns returns the most recent sent_at for each distinct cooldown_key.
-func (q *Queue) AllCooldowns() (map[string]time.Time, error) {
+func (q *Queue) allCooldowns() (map[string]time.Time, error) {
 	var entries []cooldownEntry
 	err := q.db.Select(&entries,
 		"SELECT cooldown_key, MAX(sent_at) AS last_sent FROM alerts WHERE status = 'sent' AND cooldown_key != '' GROUP BY cooldown_key",

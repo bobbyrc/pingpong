@@ -29,7 +29,7 @@ var validEnvKey = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 // Handler serves the web UI pages, API endpoints, and static assets.
 type Handler struct {
 	pages       map[string]*template.Template // keyed by page filename
-	broadcaster *Broadcaster
+	broadcaster *broadcaster
 	queue       *alerter.Queue // may be nil
 	history     *HistoryStore  // may be nil
 	envPath     string         // may be empty
@@ -74,7 +74,7 @@ func NewHandler(reg *prometheus.Registry, queue *alerter.Queue, history *History
 		pages[pf] = clone
 	}
 
-	b := NewBroadcaster(reg, 5*time.Second, history)
+	b := newBroadcaster(reg, 5*time.Second, history)
 
 	return &Handler{
 		pages:       pages,
@@ -112,7 +112,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 // Start launches the SSE broadcaster in a background goroutine.
 func (h *Handler) Start(ctx context.Context) {
-	go h.broadcaster.Run(ctx)
+	go h.broadcaster.run(ctx)
 }
 
 // dashboardPage renders the main dashboard. Only matches exact "/" path.
@@ -196,7 +196,7 @@ func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		env, err := ReadEnvFile(h.envPath)
+		env, err := readEnvFile(h.envPath)
 		if err != nil {
 			slog.Error("failed to read env file", "error", err)
 			jsonError(w, "failed to read env file", http.StatusInternalServerError)
@@ -221,7 +221,7 @@ func (h *Handler) configAPI(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if err := WriteEnvFile(h.envPath, updates); err != nil {
+		if err := writeEnvFile(h.envPath, updates); err != nil {
 			slog.Error("failed to write env file", "error", err)
 			jsonError(w, "failed to write env file", http.StatusInternalServerError)
 			return
@@ -300,7 +300,7 @@ func (h *Handler) historyAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.history.LoadAll(60)
+	data, err := h.history.loadAll(60)
 	if err != nil {
 		slog.Error("failed to load metric history", "error", err)
 		jsonError(w, "failed to load history", http.StatusInternalServerError)
@@ -355,5 +355,5 @@ func (h *Handler) deleteAllAlertsAPI(w http.ResponseWriter, r *http.Request) {
 
 // SetHostnames passes resolved hostnames to the broadcaster for SSE clients.
 func (h *Handler) SetHostnames(hostnames map[string]string) {
-	h.broadcaster.Hostnames = hostnames
+	h.broadcaster.hostnames = hostnames
 }

@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	DefaultThroughputDownloadURL = "https://speed.cloudflare.com/__down?bytes=250000000"
-	DefaultThroughputStreams     = 4
-	DefaultThroughputDuration    = 10 * time.Second
+	defaultThroughputDownloadURL = "https://speed.cloudflare.com/__down?bytes=250000000"
+	defaultThroughputStreams     = 4
+	defaultThroughputDuration    = 10 * time.Second
 )
 
 // ThroughputResult contains the result of a multi-stream download throughput test.
@@ -34,16 +34,16 @@ type ThroughputCollector struct {
 // NewThroughputCollector creates a ThroughputCollector.
 func NewThroughputCollector(downloadURL string, streams int, duration time.Duration) *ThroughputCollector {
 	if downloadURL == "" {
-		downloadURL = DefaultThroughputDownloadURL
+		downloadURL = defaultThroughputDownloadURL
 	}
 	if streams <= 0 {
-		streams = DefaultThroughputStreams
+		streams = defaultThroughputStreams
 	}
 	if streams > 16 {
 		streams = 16
 	}
 	if duration <= 0 {
-		duration = DefaultThroughputDuration
+		duration = defaultThroughputDuration
 	}
 	return &ThroughputCollector{
 		downloadURL: downloadURL,
@@ -93,7 +93,7 @@ func (t *ThroughputCollector) Collect(ctx context.Context) (ThroughputResult, er
 	}
 
 	result := ThroughputResult{
-		DownloadMbps: ComputeThroughput(total, elapsed),
+		DownloadMbps: computeThroughput(total, elapsed),
 		Streams:      t.streams,
 		DurationSecs: elapsed.Seconds(),
 		BytesTotal:   total,
@@ -138,8 +138,8 @@ func downloadStream(ctx context.Context, url string, duration time.Duration) (in
 	}
 }
 
-// ComputeThroughput converts bytes and elapsed time to Mbps.
-func ComputeThroughput(bytes int64, elapsed time.Duration) float64 {
+// computeThroughput converts bytes and elapsed time to Mbps.
+func computeThroughput(bytes int64, elapsed time.Duration) float64 {
 	if elapsed <= 0 {
 		return 0
 	}

@@ -22,9 +22,9 @@ func isFileNotExist(path string, err error) bool {
 	return dirErr == nil
 }
 
-// ReadEnvFile reads a .env file and returns a map of key=value pairs.
+// readEnvFile reads a .env file and returns a map of key=value pairs.
 // Comments (lines starting with #) and blank lines are skipped.
-func ReadEnvFile(path string) (map[string]string, error) {
+func readEnvFile(path string) (map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if isFileNotExist(path, err) {
@@ -54,10 +54,10 @@ func ReadEnvFile(path string) (map[string]string, error) {
 	return env, nil
 }
 
-// WriteEnvFile updates a .env file with the provided key=value pairs.
+// writeEnvFile updates a .env file with the provided key=value pairs.
 // Existing keys are updated in place, preserving comments and blank lines.
 // New keys (those not already present in the file) are appended at the end.
-func WriteEnvFile(path string, updates map[string]string) error {
+func writeEnvFile(path string, updates map[string]string) error {
 	var lines []string
 	seen := make(map[string]bool)
 

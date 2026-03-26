@@ -13,7 +13,7 @@ func TestConnectionState_ZeroValueIsNotDown(t *testing.T) {
 }
 
 func TestConnectionState_SetDownTrue(t *testing.T) {
-	cs := NewConnectionState()
+	cs := newConnectionState()
 	cs.SetDown(true)
 	if !cs.IsDown() {
 		t.Fatal("expected IsDown() to return true after SetDown(true)")
@@ -21,7 +21,7 @@ func TestConnectionState_SetDownTrue(t *testing.T) {
 }
 
 func TestConnectionState_SetDownFalseRestores(t *testing.T) {
-	cs := NewConnectionState()
+	cs := newConnectionState()
 	cs.SetDown(true)
 	cs.SetDown(false)
 	if cs.IsDown() {
@@ -30,7 +30,7 @@ func TestConnectionState_SetDownFalseRestores(t *testing.T) {
 }
 
 func TestConnectionState_ConcurrentAccess(t *testing.T) {
-	cs := NewConnectionState()
+	cs := newConnectionState()
 	var wg sync.WaitGroup
 
 	// Hammer SetDown/IsDown from multiple goroutines.
