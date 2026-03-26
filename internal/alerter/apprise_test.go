@@ -22,7 +22,7 @@ func TestAppriseSendSuccess(t *testing.T) {
 	defer server.Close()
 
 	client := NewAppriseClient(server.URL, "discord://webhook/token")
-	err := client.Send("Test Title", "Test Body")
+	err := client.send("Test Title", "Test Body")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -44,7 +44,7 @@ func TestAppriseSendFailure(t *testing.T) {
 	defer server.Close()
 
 	client := NewAppriseClient(server.URL, "discord://webhook/token")
-	err := client.Send("Title", "Body")
+	err := client.send("Title", "Body")
 	if err == nil {
 		t.Fatal("expected error on 500 response")
 	}
@@ -52,7 +52,7 @@ func TestAppriseSendFailure(t *testing.T) {
 
 func TestAppriseSendConnectionError(t *testing.T) {
 	client := NewAppriseClient("http://127.0.0.1:1", "discord://webhook/token")
-	err := client.Send("Title", "Body")
+	err := client.send("Title", "Body")
 	if err == nil {
 		t.Fatal("expected error on connection failure")
 	}

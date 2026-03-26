@@ -47,7 +47,7 @@ func TestQueueEnqueueAndPending(t *testing.T) {
 		t.Fatalf("failed to enqueue: %v", err)
 	}
 
-	pending, err := q.Pending()
+	pending, err := q.pending()
 	if err != nil {
 		t.Fatalf("failed to get pending: %v", err)
 	}
@@ -70,13 +70,13 @@ func TestQueueMarkSent(t *testing.T) {
 
 	q.Enqueue("latency:1.1.1.1", "latency", "High Latency", "Ping is 200ms")
 
-	pending, _ := q.Pending()
-	err := q.MarkSent(pending[0].ID)
+	pending, _ := q.pending()
+	err := q.markSent(pending[0].ID)
 	if err != nil {
 		t.Fatalf("failed to mark sent: %v", err)
 	}
 
-	pending, _ = q.Pending()
+	pending, _ = q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 pending after mark sent, got %d", len(pending))
 	}
@@ -86,14 +86,14 @@ func TestQueueIncrementRetry(t *testing.T) {
 	q := openTestQueue(t)
 
 	q.Enqueue("packet_loss:1.1.1.1", "packet_loss", "Packet Loss", "50% packet loss")
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 
-	err := q.IncrementRetry(pending[0].ID)
+	err := q.incrementRetry(pending[0].ID)
 	if err != nil {
 		t.Fatalf("failed to increment retry: %v", err)
 	}
 
-	pending, _ = q.Pending()
+	pending, _ = q.pending()
 	if pending[0].RetryCount != 1 {
 		t.Fatalf("expected retry count 1, got %d", pending[0].RetryCount)
 	}
@@ -103,43 +103,16 @@ func TestQueueMarkFailedPermanent(t *testing.T) {
 	q := openTestQueue(t)
 
 	q.Enqueue("speed", "speed", "Slow Speed", "Download is 5 Mbps")
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 
-	err := q.MarkFailedPermanent(pending[0].ID)
+	err := q.markFailedPermanent(pending[0].ID)
 	if err != nil {
 		t.Fatalf("failed to mark failed permanent: %v", err)
 	}
 
-	pending, _ = q.Pending()
+	pending, _ = q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 pending after permanent fail, got %d", len(pending))
-	}
-}
-
-func TestQueueLastSentTime(t *testing.T) {
-	q := openTestQueue(t)
-
-	_, found, err := q.LastSentTime("downtime")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if found {
-		t.Fatal("expected no last sent time for new queue")
-	}
-
-	q.Enqueue("downtime", "downtime", "Down", "down")
-	pending, _ := q.Pending()
-	q.MarkSent(pending[0].ID)
-
-	lastSent, found, err := q.LastSentTime("downtime")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !found {
-		t.Fatal("expected to find last sent time")
-	}
-	if time.Since(lastSent) > 5*time.Second {
-		t.Fatalf("last sent time should be recent, got %v", lastSent)
 	}
 }
 
@@ -152,7 +125,7 @@ func TestRecentAlerts(t *testing.T) {
 	q.Enqueue("key3", "downtime", "Alert 3", "Body 3")
 
 	// Mark one as sent
-	q.MarkSent(1)
+	q.markSent(1)
 
 	// Page 1: limit 2, offset 0
 	alerts, total, err := q.RecentAlerts(2, 0)
@@ -290,18 +263,18 @@ func TestAllCooldowns(t *testing.T) {
 	q.Enqueue("latency:1.1.1.1", "latency", "High Latency", "Ping is 200ms")
 	q.Enqueue("packet_loss:8.8.8.8", "packet_loss", "Packet Loss", "50% loss")
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 2 {
 		t.Fatalf("expected 2 pending, got %d", len(pending))
 	}
 
 	// Mark only the first one as sent.
-	if err := q.MarkSent(pending[0].ID); err != nil {
+	if err := q.markSent(pending[0].ID); err != nil {
 		t.Fatalf("MarkSent: %v", err)
 	}
 
 	// AllCooldowns should return only the sent alert's cooldown key.
-	cooldowns, err := q.AllCooldowns()
+	cooldowns, err := q.allCooldowns()
 	if err != nil {
 		t.Fatalf("AllCooldowns: %v", err)
 	}
@@ -354,7 +327,7 @@ func TestNewQueueIdempotent(t *testing.T) {
 	}
 
 	// Verify the data is still accessible via the second queue handle.
-	pending, err := q2.Pending()
+	pending, err := q2.pending()
 	if err != nil {
 		t.Fatalf("Pending via q2: %v", err)
 	}
@@ -373,7 +346,7 @@ func TestQueuePersistence(t *testing.T) {
 
 	q2, db2 := openTestQueueAt(t, dbPath)
 	defer db2.Close()
-	pending, _ := q2.Pending()
+	pending, _ := q2.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 pending alert after reopen, got %d", len(pending))
 	}

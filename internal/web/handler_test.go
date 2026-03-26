@@ -320,9 +320,9 @@ func TestHistoryAPIWithData(t *testing.T) {
 		t.Fatalf("NewHistoryStore: %v", err)
 	}
 
-	store.Record("ping_latency", "1.1.1.1", 12.5)
-	store.Record("ping_latency", "1.1.1.1", 13.0)
-	store.Record("download_speed", "", 95.2)
+	store.record("ping_latency", "1.1.1.1", 12.5)
+	store.record("ping_latency", "1.1.1.1", 13.0)
+	store.record("download_speed", "", 95.2)
 
 	reg := prometheus.NewRegistry()
 	h, err := NewHandler(reg, nil, store, "")
@@ -342,7 +342,7 @@ func TestHistoryAPIWithData(t *testing.T) {
 	}
 
 	// Parse the nested structure
-	var resp map[string]map[string][]HistoryPoint
+	var resp map[string]map[string][]historyPoint
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}

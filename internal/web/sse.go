@@ -13,21 +13,21 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
-// MetricSnapshot is the JSON structure broadcast to SSE clients.
-type MetricSnapshot struct {
+// metricSnapshot is the JSON structure broadcast to SSE clients.
+type metricSnapshot struct {
 	Timestamp string                   `json:"timestamp"`
-	Metrics   map[string][]MetricValue `json:"metrics"`
+	Metrics   map[string][]metricValue `json:"metrics"`
 }
 
-// MetricValue holds a single metric sample with optional labels.
-type MetricValue struct {
+// metricValue holds a single metric sample with optional labels.
+type metricValue struct {
 	Labels map[string]string `json:"labels,omitempty"`
 	Value  float64           `json:"value"`
 }
 
-// Broadcaster gathers Prometheus metrics at a fixed interval and pushes
+// broadcaster gathers Prometheus metrics at a fixed interval and pushes
 // JSON-encoded snapshots to all connected SSE clients.
-type Broadcaster struct {
+type broadcaster struct {
 	gatherer prometheus.Gatherer
 	interval time.Duration
 	history  *HistoryStore // may be nil
@@ -38,14 +38,14 @@ type Broadcaster struct {
 	pruneCount int                // broadcast ticks since last prune
 	lastValues map[string]float64 // dedup: last recorded value per "metric:target"
 
-	// Hostnames maps ping target -> resolved hostname (for SSE clients).
-	Hostnames map[string]string
+	// hostnames maps ping target -> resolved hostname (for SSE clients).
+	hostnames map[string]string
 }
 
-// NewBroadcaster creates a Broadcaster that reads from the given gatherer
+// newBroadcaster creates a broadcaster that reads from the given gatherer
 // every interval.
-func NewBroadcaster(gatherer prometheus.Gatherer, interval time.Duration, history *HistoryStore) *Broadcaster {
-	return &Broadcaster{
+func newBroadcaster(gatherer prometheus.Gatherer, interval time.Duration, history *HistoryStore) *broadcaster {
+	return &broadcaster{
 		gatherer:   gatherer,
 		interval:   interval,
 		history:    history,
@@ -54,8 +54,8 @@ func NewBroadcaster(gatherer prometheus.Gatherer, interval time.Duration, histor
 	}
 }
 
-// Run starts the broadcast loop. It blocks until ctx is cancelled.
-func (b *Broadcaster) Run(ctx context.Context) {
+// run starts the broadcast loop. It blocks until ctx is cancelled.
+func (b *broadcaster) run(ctx context.Context) {
 	ticker := time.NewTicker(b.interval)
 	defer ticker.Stop()
 
@@ -70,7 +70,7 @@ func (b *Broadcaster) Run(ctx context.Context) {
 }
 
 // broadcast gathers a snapshot and sends it to every connected client.
-func (b *Broadcaster) broadcast() {
+func (b *broadcaster) broadcast() {
 	snap, err := b.gatherSnapshot()
 	if err != nil {
 		slog.Error("failed to gather metrics snapshot", "error", err)
@@ -98,7 +98,7 @@ func (b *Broadcaster) broadcast() {
 }
 
 // recordHistory persists sparkline-relevant metrics from the snapshot.
-func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
+func (b *broadcaster) recordHistory(snap *metricSnapshot) {
 	if b.history == nil {
 		return
 	}
@@ -118,7 +118,7 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 			return
 		}
 		b.lastValues[key] = value
-		if err := b.history.Record(metric, target, value); err != nil {
+		if err := b.history.record(metric, target, value); err != nil {
 			slog.Error("failed to record history", "metric", metric, "target", target, "error", err)
 		}
 	}
@@ -131,7 +131,7 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 		}
 		record("ping_latency", target, mv.Value)
 		if shouldPrune {
-			if err := b.history.Prune("ping_latency", target, keep); err != nil {
+			if err := b.history.prune("ping_latency", target, keep); err != nil {
 				slog.Error("failed to prune ping history", "target", target, "error", err)
 			}
 		}
@@ -141,10 +141,6 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 	// Gate bandwidth-related series on a "has real data" signal to avoid
 	// recording default gauge zeros before any test has run.
 	hasNDT7 := len(snap.Metrics["pingpong_ndt7_info"]) > 0
-	hasBloat := len(snap.Metrics["pingpong_bufferbloat_grade"]) > 0 &&
-		snap.Metrics["pingpong_bufferbloat_grade"][0].Value > 0
-	hasTP := len(snap.Metrics["pingpong_max_download_speed_mbps"]) > 0 &&
-		snap.Metrics["pingpong_max_download_speed_mbps"][0].Value > 0
 
 	type historySpec struct {
 		promName string
@@ -154,11 +150,6 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 	specs := []historySpec{
 		{"pingpong_download_speed_mbps", "download_speed", hasNDT7},
 		{"pingpong_upload_speed_mbps", "upload_speed", hasNDT7},
-		{"pingpong_ndt7_download_speed_mbps", "ndt7_download", hasNDT7},
-		{"pingpong_ndt7_upload_speed_mbps", "ndt7_upload", hasNDT7},
-		{"pingpong_bufferbloat_grade", "bufferbloat_grade", hasBloat},
-		{"pingpong_bufferbloat_latency_increase_ms", "bufferbloat_latency_increase", hasBloat},
-		{"pingpong_max_download_speed_mbps", "max_download_speed", hasTP},
 	}
 	for _, spec := range specs {
 		if spec.gate {
@@ -167,7 +158,7 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 			}
 		}
 		if shouldPrune {
-			if err := b.history.Prune(spec.seriesID, "", keep); err != nil {
+			if err := b.history.prune(spec.seriesID, "", keep); err != nil {
 				slog.Error("failed to prune history", "series", spec.seriesID, "error", err)
 			}
 		}
@@ -175,7 +166,7 @@ func (b *Broadcaster) recordHistory(snap *MetricSnapshot) {
 }
 
 // subscribe adds a new client channel and returns it.
-func (b *Broadcaster) subscribe() chan []byte {
+func (b *broadcaster) subscribe() chan []byte {
 	ch := make(chan []byte, 8)
 	b.mu.Lock()
 	b.clients[ch] = struct{}{}
@@ -184,7 +175,7 @@ func (b *Broadcaster) subscribe() chan []byte {
 }
 
 // unsubscribe removes a client channel from the broadcast set.
-func (b *Broadcaster) unsubscribe(ch chan []byte) {
+func (b *broadcaster) unsubscribe(ch chan []byte) {
 	b.mu.Lock()
 	delete(b.clients, ch)
 	b.mu.Unlock()
@@ -193,7 +184,7 @@ func (b *Broadcaster) unsubscribe(ch chan []byte) {
 }
 
 // ServeHTTP implements http.Handler for the SSE endpoint.
-func (b *Broadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (b *broadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
@@ -231,7 +222,7 @@ func (b *Broadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // snapshotJSON gathers metrics and returns the JSON-encoded snapshot.
-func (b *Broadcaster) snapshotJSON() ([]byte, error) {
+func (b *broadcaster) snapshotJSON() ([]byte, error) {
 	snap, err := b.gatherSnapshot()
 	if err != nil {
 		return nil, err
@@ -240,16 +231,16 @@ func (b *Broadcaster) snapshotJSON() ([]byte, error) {
 }
 
 // gatherSnapshot reads all metric families from the registry and converts
-// GAUGE and COUNTER types into a MetricSnapshot.
-func (b *Broadcaster) gatherSnapshot() (*MetricSnapshot, error) {
+// GAUGE and COUNTER types into a metricSnapshot.
+func (b *broadcaster) gatherSnapshot() (*metricSnapshot, error) {
 	families, err := b.gatherer.Gather()
 	if err != nil {
 		return nil, fmt.Errorf("gather: %w", err)
 	}
 
-	snap := &MetricSnapshot{
+	snap := &metricSnapshot{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Metrics:   make(map[string][]MetricValue),
+		Metrics:   make(map[string][]metricValue),
 	}
 
 	for _, fam := range families {
@@ -267,7 +258,7 @@ func (b *Broadcaster) gatherSnapshot() (*MetricSnapshot, error) {
 				continue
 			}
 
-			mv := MetricValue{Value: val}
+			mv := metricValue{Value: val}
 			if pairs := m.GetLabel(); len(pairs) > 0 {
 				mv.Labels = make(map[string]string, len(pairs))
 				for _, lp := range pairs {
@@ -276,9 +267,9 @@ func (b *Broadcaster) gatherSnapshot() (*MetricSnapshot, error) {
 			}
 
 			// Inject resolved hostname for ping metrics
-			if b.Hostnames != nil && name == "pingpong_ping_latency_ms" {
+			if b.hostnames != nil && name == "pingpong_ping_latency_ms" {
 				if mv.Labels != nil {
-					if hostname, ok := b.Hostnames[mv.Labels["target"]]; ok {
+					if hostname, ok := b.hostnames[mv.Labels["target"]]; ok {
 						mv.Labels["hostname"] = hostname
 					}
 				}

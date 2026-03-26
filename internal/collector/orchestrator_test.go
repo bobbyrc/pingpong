@@ -28,7 +28,7 @@ func TestOrchestrator_LatencySpike(t *testing.T) {
 
 	select {
 	case evt := <-triggerCh:
-		if evt.Reason != TriggerLatencySpike {
+		if evt.Reason != triggerLatencySpike {
 			t.Fatalf("expected latency_spike trigger, got %s", evt.Reason)
 		}
 	default:
@@ -52,7 +52,7 @@ func TestOrchestrator_JitterSpike(t *testing.T) {
 
 	select {
 	case evt := <-triggerCh:
-		if evt.Reason != TriggerJitterSpike {
+		if evt.Reason != triggerJitterSpike {
 			t.Fatalf("expected jitter_spike trigger, got %s", evt.Reason)
 		}
 	default:
@@ -69,7 +69,7 @@ func TestOrchestrator_PacketLoss(t *testing.T) {
 
 	select {
 	case evt := <-triggerCh:
-		if evt.Reason != TriggerPacketLoss {
+		if evt.Reason != triggerPacketLoss {
 			t.Fatalf("expected packet_loss trigger, got %s", evt.Reason)
 		}
 	default:
@@ -93,7 +93,7 @@ func TestOrchestrator_DNSSlow(t *testing.T) {
 
 	select {
 	case evt := <-triggerCh:
-		if evt.Reason != TriggerDNSSlow {
+		if evt.Reason != triggerDNSSlow {
 			t.Fatalf("expected dns_slow trigger, got %s", evt.Reason)
 		}
 	default:
@@ -110,7 +110,7 @@ func TestOrchestrator_ConnectionRecovery(t *testing.T) {
 
 	select {
 	case evt := <-triggerCh:
-		if evt.Reason != TriggerConnectionRecovery {
+		if evt.Reason != triggerConnectionRecovery {
 			t.Fatalf("expected connection_recovery trigger, got %s", evt.Reason)
 		}
 	default:
@@ -178,7 +178,7 @@ func TestOrchestrator_WarmupPreventsSpuriousTriggers(t *testing.T) {
 	select {
 	case evt := <-triggerCh:
 		// Packet loss triggers don't require warmup, filter those out
-		if evt.Reason == TriggerLatencySpike || evt.Reason == TriggerJitterSpike {
+		if evt.Reason == triggerLatencySpike || evt.Reason == triggerJitterSpike {
 			t.Fatalf("unexpected trigger during warmup: %s", evt.Reason)
 		}
 	default:

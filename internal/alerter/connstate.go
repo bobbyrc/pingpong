@@ -10,7 +10,7 @@ type ConnectionState struct {
 	down bool
 }
 
-func NewConnectionState() *ConnectionState {
+func newConnectionState() *ConnectionState {
 	return &ConnectionState{}
 }
 

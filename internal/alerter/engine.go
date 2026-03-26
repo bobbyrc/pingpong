@@ -25,7 +25,7 @@ func NewEngine(queue *Queue, apprise *AppriseClient, cfg *config.Config) *Engine
 		queue:         queue,
 		apprise:       apprise,
 		cfg:           cfg,
-		connState:     NewConnectionState(),
+		connState:     newConnectionState(),
 		lastAlertTime: make(map[string]time.Time),
 	}
 }
@@ -33,7 +33,7 @@ func NewEngine(queue *Queue, apprise *AppriseClient, cfg *config.Config) *Engine
 // SeedCooldowns pre-populates lastAlertTime from the database so that cooldowns
 // survive a process restart.
 func (e *Engine) SeedCooldowns() {
-	cooldowns, err := e.queue.AllCooldowns()
+	cooldowns, err := e.queue.allCooldowns()
 	if err != nil {
 		slog.Warn("failed to seed cooldowns", "error", err)
 		return
@@ -75,16 +75,6 @@ func (e *Engine) EvaluatePing(results []collector.PingResult) {
 					r.Target, r.JitterMs, e.cfg.AlertJitterThreshold),
 			)
 		}
-	}
-}
-
-func (e *Engine) EvaluateSpeed(result collector.SpeedtestResult) {
-	if e.cfg.AlertSpeedThreshold > 0 && result.DownloadMbps < e.cfg.AlertSpeedThreshold {
-		e.fireAlert("speed", "speed",
-			"Slow Download Speed",
-			fmt.Sprintf("Download speed is %.1f Mbps (threshold: %.1f Mbps)",
-				result.DownloadMbps, e.cfg.AlertSpeedThreshold),
-		)
 	}
 }
 
@@ -171,31 +161,31 @@ func (e *Engine) ProcessQueue() {
 		return
 	}
 
-	pending, err := e.queue.Pending()
+	pending, err := e.queue.pending()
 	if err != nil {
 		slog.Error("failed to get pending alerts", "error", err)
 		return
 	}
 
 	for _, alert := range pending {
-		err := e.apprise.Send(alert.Title, alert.Body)
+		err := e.apprise.send(alert.Title, alert.Body)
 		if err != nil {
 			slog.Error("failed to send alert", "id", alert.ID, "error", err)
-			if incErr := e.queue.IncrementRetry(alert.ID); incErr != nil {
+			if incErr := e.queue.incrementRetry(alert.ID); incErr != nil {
 				slog.Error("failed to increment retry count", "id", alert.ID, "error", incErr)
 			}
 
 			if alert.RetryCount+1 >= e.cfg.AlertMaxRetries {
 				slog.Error("alert exceeded max retries, marking permanent failure",
 					"id", alert.ID, "type", alert.AlertType)
-				if markErr := e.queue.MarkFailedPermanent(alert.ID); markErr != nil {
+				if markErr := e.queue.markFailedPermanent(alert.ID); markErr != nil {
 					slog.Error("failed to mark alert as permanent failure", "id", alert.ID, "error", markErr)
 				}
 			}
 			continue
 		}
 
-		if markErr := e.queue.MarkSent(alert.ID); markErr != nil {
+		if markErr := e.queue.markSent(alert.ID); markErr != nil {
 			slog.Error("failed to mark alert as sent", "id", alert.ID, "error", markErr)
 			continue
 		}

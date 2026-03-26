@@ -1,47 +1,47 @@
 package collector
 
-// RollingAvg tracks an exponential moving average (EMA) with a configurable
+// rollingAvg tracks an exponential moving average (EMA) with a configurable
 // warmup period. It is safe for single-goroutine use.
-type RollingAvg struct {
+type rollingAvg struct {
 	alpha    float64
 	minReady int
-	count    int
-	value    float64
+	n        int
+	ema      float64
 }
 
-// NewRollingAvg creates a RollingAvg with the given smoothing factor (alpha)
-// and minimum number of samples before Ready() returns true.
-func NewRollingAvg(alpha float64, minReady int) *RollingAvg {
+// newRollingAvg creates a rollingAvg with the given smoothing factor (alpha)
+// and minimum number of samples before ready() returns true.
+func newRollingAvg(alpha float64, minReady int) *rollingAvg {
 	if alpha <= 0 || alpha > 1 {
 		alpha = 0.1
 	}
 	if minReady < 1 {
 		minReady = 1
 	}
-	return &RollingAvg{alpha: alpha, minReady: minReady}
+	return &rollingAvg{alpha: alpha, minReady: minReady}
 }
 
-// Update adds a new sample to the EMA.
-func (r *RollingAvg) Update(v float64) {
-	r.count++
-	if r.count == 1 {
-		r.value = v
+// update adds a new sample to the EMA.
+func (r *rollingAvg) update(v float64) {
+	r.n++
+	if r.n == 1 {
+		r.ema = v
 		return
 	}
-	r.value = r.alpha*v + (1-r.alpha)*r.value
+	r.ema = r.alpha*v + (1-r.alpha)*r.ema
 }
 
-// Ready returns true once at least minReady samples have been recorded.
-func (r *RollingAvg) Ready() bool {
-	return r.count >= r.minReady
+// ready returns true once at least minReady samples have been recorded.
+func (r *rollingAvg) ready() bool {
+	return r.n >= r.minReady
 }
 
-// Value returns the current EMA value.
-func (r *RollingAvg) Value() float64 {
-	return r.value
+// value returns the current EMA value.
+func (r *rollingAvg) value() float64 {
+	return r.ema
 }
 
-// Count returns the number of samples recorded.
-func (r *RollingAvg) Count() int {
-	return r.count
+// count returns the number of samples recorded.
+func (r *rollingAvg) count() int {
+	return r.n
 }

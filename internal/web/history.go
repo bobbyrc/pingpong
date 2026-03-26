@@ -6,8 +6,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// HistoryPoint is a single timestamped metric value.
-type HistoryPoint struct {
+// historyPoint is a single timestamped metric value.
+type historyPoint struct {
 	Time  string  `db:"recorded_at" json:"t"`
 	Value float64 `db:"value"       json:"v"`
 }
@@ -37,8 +37,8 @@ func NewHistoryStore(db *sqlx.DB) (*HistoryStore, error) {
 	return &HistoryStore{db: db}, nil
 }
 
-// Record inserts a single metric data point.
-func (s *HistoryStore) Record(metric, target string, value float64) error {
+// record inserts a single metric data point.
+func (s *HistoryStore) record(metric, target string, value float64) error {
 	_, err := s.db.Exec(
 		"INSERT INTO metric_history (metric, target, value) VALUES (?, ?, ?)",
 		metric, target, value,
@@ -46,8 +46,8 @@ func (s *HistoryStore) Record(metric, target string, value float64) error {
 	return err
 }
 
-// Prune deletes all but the newest `keep` rows for a given metric+target.
-func (s *HistoryStore) Prune(metric, target string, keep int) error {
+// prune deletes all but the newest `keep` rows for a given metric+target.
+func (s *HistoryStore) prune(metric, target string, keep int) error {
 	_, err := s.db.Exec(`DELETE FROM metric_history
 		WHERE metric = ? AND target = ? AND id NOT IN (
 			SELECT id FROM metric_history
@@ -55,22 +55,6 @@ func (s *HistoryStore) Prune(metric, target string, keep int) error {
 			ORDER BY id DESC LIMIT ?
 		)`, metric, target, metric, target, keep)
 	return err
-}
-
-// Load returns the last `limit` data points for a metric+target, oldest first.
-func (s *HistoryStore) Load(metric, target string, limit int) ([]HistoryPoint, error) {
-	var points []HistoryPoint
-	err := s.db.Select(&points, `SELECT recorded_at, value FROM metric_history
-		WHERE metric = ? AND target = ?
-		ORDER BY id DESC LIMIT ?`, metric, target, limit)
-	if err != nil {
-		return nil, err
-	}
-	// Reverse to oldest-first order
-	for i, j := 0, len(points)-1; i < j; i, j = i+1, j-1 {
-		points[i], points[j] = points[j], points[i]
-	}
-	return points, nil
 }
 
 // historyRow is a helper for scanning full history rows in a single query.
@@ -81,9 +65,9 @@ type historyRow struct {
 	Value  float64 `db:"value"`
 }
 
-// LoadAll returns all stored history grouped by metric then target.
-// Result: map[metric]map[target][]HistoryPoint
-func (s *HistoryStore) LoadAll(limit int) (map[string]map[string][]HistoryPoint, error) {
+// loadAll returns all stored history grouped by metric then target.
+// Result: map[metric]map[target][]historyPoint
+func (s *HistoryStore) loadAll(limit int) (map[string]map[string][]historyPoint, error) {
 	var rows []historyRow
 
 	if limit > 0 {
@@ -113,13 +97,13 @@ func (s *HistoryStore) LoadAll(limit int) (map[string]map[string][]HistoryPoint,
 		}
 	}
 
-	result := make(map[string]map[string][]HistoryPoint)
+	result := make(map[string]map[string][]historyPoint)
 
 	for _, r := range rows {
 		if result[r.Metric] == nil {
-			result[r.Metric] = make(map[string][]HistoryPoint)
+			result[r.Metric] = make(map[string][]historyPoint)
 		}
-		result[r.Metric][r.Target] = append(result[r.Metric][r.Target], HistoryPoint{
+		result[r.Metric][r.Target] = append(result[r.Metric][r.Target], historyPoint{
 			Time:  r.Time,
 			Value: r.Value,
 		})

@@ -24,9 +24,9 @@ func TestComputeThroughput(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := ComputeThroughput(tt.bytes, tt.elapsed)
+		got := computeThroughput(tt.bytes, tt.elapsed)
 		if got != tt.want {
-			t.Errorf("ComputeThroughput(%s) = %.2f, want %.2f", tt.name, got, tt.want)
+			t.Errorf("computeThroughput(%s) = %.2f, want %.2f", tt.name, got, tt.want)
 		}
 	}
 }
@@ -35,10 +35,10 @@ func TestComputeThroughput_LargeValues(t *testing.T) {
 	// 1 Gbps = 125MB/s, so 1.25GB in 10s
 	bytes := int64(1_250_000_000)
 	elapsed := 10 * time.Second
-	got := ComputeThroughput(bytes, elapsed)
+	got := computeThroughput(bytes, elapsed)
 	want := 1000.0
 	if got != want {
-		t.Errorf("ComputeThroughput(1Gbps) = %.2f, want %.2f", got, want)
+		t.Errorf("computeThroughput(1Gbps) = %.2f, want %.2f", got, want)
 	}
 }
 
