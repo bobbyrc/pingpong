@@ -25,12 +25,12 @@ func TestBroadcaster_SSE(t *testing.T) {
 	gauge.Set(42.0)
 
 	// 2. Create a broadcaster with a short interval.
-	b := NewBroadcaster(reg, 50*time.Millisecond, nil)
+	b := newBroadcaster(reg, 50*time.Millisecond, nil)
 
 	// 3. Start the broadcaster in the background.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	go b.Run(ctx)
+	go b.run(ctx)
 
 	// 4. Stand up a real HTTP test server so streaming/flushing works.
 	srv := httptest.NewServer(b)
@@ -62,7 +62,7 @@ func TestBroadcaster_SSE(t *testing.T) {
 		}
 
 		payload := strings.TrimPrefix(line, "data: ")
-		var snap MetricSnapshot
+		var snap metricSnapshot
 		if err := json.Unmarshal([]byte(payload), &snap); err != nil {
 			t.Fatalf("unmarshal snapshot: %v", err)
 		}
@@ -108,7 +108,7 @@ func TestBroadcaster_GatherSnapshot(t *testing.T) {
 	reg.MustRegister(counter)
 	counter.Add(7)
 
-	b := NewBroadcaster(reg, time.Second, nil)
+	b := newBroadcaster(reg, time.Second, nil)
 	snap, err := b.gatherSnapshot()
 	if err != nil {
 		t.Fatalf("gatherSnapshot: %v", err)
@@ -141,7 +141,7 @@ func TestBroadcaster_GatherSnapshot(t *testing.T) {
 
 func TestBroadcaster_SubscribeUnsubscribe(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	b := NewBroadcaster(reg, time.Second, nil)
+	b := newBroadcaster(reg, time.Second, nil)
 
 	ch := b.subscribe()
 	b.mu.Lock()
@@ -159,7 +159,7 @@ func TestBroadcaster_SubscribeUnsubscribe(t *testing.T) {
 }
 
 // keysOf returns the keys of a map for diagnostic output.
-func keysOf(m map[string][]MetricValue) []string {
+func keysOf(m map[string][]metricValue) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -176,8 +176,8 @@ func TestGatherSnapshot_HostnameInjection(t *testing.T) {
 	reg.MustRegister(gauge)
 	gauge.WithLabelValues("1.1.1.1").Set(25.0)
 
-	b := NewBroadcaster(reg, time.Second, nil)
-	b.Hostnames = map[string]string{"1.1.1.1": "one.one.one.one"}
+	b := newBroadcaster(reg, time.Second, nil)
+	b.hostnames = map[string]string{"1.1.1.1": "one.one.one.one"}
 
 	snap, err := b.gatherSnapshot()
 	if err != nil {
@@ -209,8 +209,8 @@ func TestGatherSnapshot_NoHostnameForUnknownTarget(t *testing.T) {
 	reg.MustRegister(gauge)
 	gauge.WithLabelValues("9.9.9.9").Set(30.0)
 
-	b := NewBroadcaster(reg, time.Second, nil)
-	b.Hostnames = map[string]string{"1.1.1.1": "one.one.one.one"}
+	b := newBroadcaster(reg, time.Second, nil)
+	b.hostnames = map[string]string{"1.1.1.1": "one.one.one.one"}
 
 	snap, err := b.gatherSnapshot()
 	if err != nil {
@@ -244,7 +244,7 @@ func TestBroadcaster_RecordHistoryDedup(t *testing.T) {
 	reg.MustRegister(gauge)
 	gauge.WithLabelValues("1.1.1.1").Set(12.5)
 
-	b := NewBroadcaster(reg, time.Second, store)
+	b := newBroadcaster(reg, time.Second, store)
 
 	// Record twice with same value — should only persist one row
 	snap1, _ := b.gatherSnapshot()
@@ -252,10 +252,11 @@ func TestBroadcaster_RecordHistoryDedup(t *testing.T) {
 	snap2, _ := b.gatherSnapshot()
 	b.recordHistory(snap2)
 
-	points, err := store.Load("ping_latency", "1.1.1.1", 60)
+	all, err := store.loadAll(60)
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf("LoadAll: %v", err)
 	}
+	points := all["ping_latency"]["1.1.1.1"]
 	if len(points) != 1 {
 		t.Errorf("expected 1 point (dedup), got %d", len(points))
 	}
@@ -265,10 +266,11 @@ func TestBroadcaster_RecordHistoryDedup(t *testing.T) {
 	snap3, _ := b.gatherSnapshot()
 	b.recordHistory(snap3)
 
-	points, err = store.Load("ping_latency", "1.1.1.1", 60)
+	all, err = store.loadAll(60)
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf("LoadAll: %v", err)
 	}
+	points = all["ping_latency"]["1.1.1.1"]
 	if len(points) != 2 {
 		t.Errorf("expected 2 points after value change, got %d", len(points))
 	}

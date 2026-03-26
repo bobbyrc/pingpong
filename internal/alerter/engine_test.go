@@ -55,7 +55,7 @@ func TestEngineEvaluatePacketLoss(t *testing.T) {
 
 	engine.EvaluatePing(results)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert for high packet loss, got %d", len(pending))
 	}
@@ -77,7 +77,7 @@ func TestEngineEvaluateNoAlert(t *testing.T) {
 
 	engine.EvaluatePing(results)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts for normal values, got %d", len(pending))
 	}
@@ -94,37 +94,15 @@ func TestEngineCooldown(t *testing.T) {
 	}
 
 	engine.EvaluatePing(results)
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert on first eval, got %d", len(pending))
 	}
 
 	engine.EvaluatePing(results)
-	pending, _ = q.Pending()
+	pending, _ = q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected still 1 alert (cooldown active), got %d", len(pending))
-	}
-}
-
-func TestEngineEvaluateSpeed(t *testing.T) {
-	engine, q := newTestEngine(t, dummyApprise, &config.Config{
-		AlertSpeedThreshold: 50,
-		AlertCooldown:       1 * time.Second,
-	})
-
-	result := collector.SpeedtestResult{
-		DownloadMbps: 25.0,
-		UploadMbps:   10.0,
-	}
-
-	engine.EvaluateSpeed(result)
-
-	pending, _ := q.Pending()
-	if len(pending) != 1 {
-		t.Fatalf("expected 1 alert for slow speed, got %d", len(pending))
-	}
-	if pending[0].AlertType != "speed" {
-		t.Fatalf("expected alert type speed, got %s", pending[0].AlertType)
 	}
 }
 
@@ -141,7 +119,7 @@ func TestEngineEvaluateNDT7_BelowThreshold(t *testing.T) {
 
 	engine.EvaluateNDT7(result)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert for slow NDT7 speed, got %d", len(pending))
 	}
@@ -163,7 +141,7 @@ func TestEngineEvaluateNDT7_AboveThreshold(t *testing.T) {
 
 	engine.EvaluateNDT7(result)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts for fast NDT7 speed, got %d", len(pending))
 	}
@@ -178,7 +156,7 @@ func TestEngineEvaluateNDT7_SharesCooldownWithSpeed(t *testing.T) {
 	// Fire via EvaluateNDT7
 	engine.EvaluateNDT7(collector.NDT7Result{DownloadMbps: 25.0})
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert, got %d", len(pending))
 	}
@@ -186,7 +164,7 @@ func TestEngineEvaluateNDT7_SharesCooldownWithSpeed(t *testing.T) {
 	// Try again — should be suppressed by cooldown (same "speed" key)
 	engine.EvaluateNDT7(collector.NDT7Result{DownloadMbps: 20.0})
 
-	pending, _ = q.Pending()
+	pending, _ = q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected still 1 alert (cooldown active), got %d", len(pending))
 	}
@@ -206,10 +184,7 @@ func TestEngineDisabledThresholds(t *testing.T) {
 	}
 	engine.EvaluatePing(results)
 
-	speed := collector.SpeedtestResult{DownloadMbps: 0.1}
-	engine.EvaluateSpeed(speed)
-
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts with disabled thresholds, got %d", len(pending))
 	}
@@ -227,7 +202,7 @@ func TestEvaluatePing_LatencyThreshold(t *testing.T) {
 
 	engine.EvaluatePing(results)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert for high latency, got %d", len(pending))
 	}
@@ -251,7 +226,7 @@ func TestEvaluatePing_JitterThreshold(t *testing.T) {
 
 	engine.EvaluatePing(results)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert for high jitter, got %d", len(pending))
 	}
@@ -273,7 +248,7 @@ func TestEvaluateDowntime_BelowThreshold(t *testing.T) {
 	downSince := time.Now().Add(-30 * time.Second)
 	engine.EvaluateDowntime(true, downSince)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts when downtime below threshold, got %d", len(pending))
 	}
@@ -289,7 +264,7 @@ func TestEvaluateDowntime_AboveThreshold(t *testing.T) {
 	downSince := time.Now().Add(-5 * time.Minute)
 	engine.EvaluateDowntime(true, downSince)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert when downtime above threshold, got %d", len(pending))
 	}
@@ -307,7 +282,7 @@ func TestEvaluateDowntime_NotDown(t *testing.T) {
 	// isDown=false should be a no-op regardless of downSince.
 	engine.EvaluateDowntime(false, time.Now().Add(-10*time.Minute))
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts when not down, got %d", len(pending))
 	}
@@ -322,7 +297,7 @@ func TestEvaluateDowntime_DisabledThreshold(t *testing.T) {
 	// Even though we've been down for a long time, threshold=0 means disabled.
 	engine.EvaluateDowntime(true, time.Now().Add(-1*time.Hour))
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts when downtime threshold is disabled (0), got %d", len(pending))
 	}
@@ -353,11 +328,11 @@ func TestSeedCooldowns(t *testing.T) {
 	}
 	e1.EvaluatePing(results)
 
-	pending, _ := q1.Pending()
+	pending, _ := q1.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 pending alert, got %d", len(pending))
 	}
-	if err := q1.MarkSent(pending[0].ID); err != nil {
+	if err := q1.markSent(pending[0].ID); err != nil {
 		t.Fatalf("MarkSent: %v", err)
 	}
 	db1.Close()
@@ -379,7 +354,7 @@ func TestSeedCooldowns(t *testing.T) {
 	// Try to fire the same alert — should be suppressed by cooldown.
 	e2.EvaluatePing(results)
 
-	pending, _ = q2.Pending()
+	pending, _ = q2.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 pending alerts after SeedCooldowns (cooldown should suppress), got %d", len(pending))
 	}
@@ -397,7 +372,7 @@ func TestEvaluatePing_MultiTargetCooldownIsolation(t *testing.T) {
 	}
 	engine.EvaluatePing(resultsA)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert for target A, got %d", len(pending))
 	}
@@ -408,7 +383,7 @@ func TestEvaluatePing_MultiTargetCooldownIsolation(t *testing.T) {
 	}
 	engine.EvaluatePing(resultsB)
 
-	pending, _ = q.Pending()
+	pending, _ = q.pending()
 	if len(pending) != 2 {
 		t.Fatalf("expected 2 alerts (one per target), got %d", len(pending))
 	}
@@ -428,7 +403,7 @@ func TestEvaluatePing_MultiTargetCooldownIsolation(t *testing.T) {
 	// Re-evaluate target A — should be suppressed (cooldown active).
 	engine.EvaluatePing(resultsA)
 
-	pending, _ = q.Pending()
+	pending, _ = q.pending()
 	if len(pending) != 2 {
 		t.Fatalf("expected still 2 alerts (target A in cooldown), got %d", len(pending))
 	}
@@ -445,7 +420,7 @@ func TestProcessQueue_SkipsWhenConnectionDown(t *testing.T) {
 		{Target: "1.1.1.1", PacketLoss: 50.0},
 	})
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 pending alert, got %d", len(pending))
 	}
@@ -456,7 +431,7 @@ func TestProcessQueue_SkipsWhenConnectionDown(t *testing.T) {
 	// ProcessQueue should short-circuit — alert stays pending.
 	engine.ProcessQueue()
 
-	pending, _ = q.Pending()
+	pending, _ = q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected alert to remain pending when connection is down, got %d", len(pending))
 	}
@@ -484,7 +459,7 @@ func TestProcessQueue_ProceedsWhenConnectionUp(t *testing.T) {
 	// but the point is it DOES attempt — retry count increments.
 	engine.ProcessQueue()
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 pending alert, got %d", len(pending))
 	}
@@ -521,7 +496,7 @@ func TestProcessQueue_NilConnStateAlwaysProceeds(t *testing.T) {
 	// Should proceed (attempt send) even with nil connState.
 	engine.ProcessQueue()
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 pending alert, got %d", len(pending))
 	}
@@ -545,7 +520,7 @@ func TestEvaluateBufferbloat_BadGrade(t *testing.T) {
 
 	engine.EvaluateBufferbloat(result)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert for bad bufferbloat grade, got %d", len(pending))
 	}
@@ -569,7 +544,7 @@ func TestEvaluateBufferbloat_GoodGrade(t *testing.T) {
 
 	engine.EvaluateBufferbloat(result)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts for good bufferbloat grade, got %d", len(pending))
 	}
@@ -587,7 +562,7 @@ func TestEvaluateBufferbloat_Disabled(t *testing.T) {
 
 	engine.EvaluateBufferbloat(result)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts when bufferbloat alerting disabled, got %d", len(pending))
 	}
@@ -607,7 +582,7 @@ func TestEvaluateBufferbloat_ExactThreshold(t *testing.T) {
 
 	engine.EvaluateBufferbloat(result)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 1 {
 		t.Fatalf("expected 1 alert when grade equals threshold, got %d", len(pending))
 	}
@@ -624,7 +599,7 @@ func TestEngineNoAppriseSkipsEnqueue(t *testing.T) {
 	}
 	engine.EvaluatePing(results)
 
-	pending, _ := q.Pending()
+	pending, _ := q.pending()
 	if len(pending) != 0 {
 		t.Fatalf("expected 0 alerts when apprise is nil, got %d", len(pending))
 	}

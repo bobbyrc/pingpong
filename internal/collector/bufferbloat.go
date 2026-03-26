@@ -13,8 +13,8 @@ import (
 	probing "github.com/prometheus-community/pro-bing"
 )
 
-// DefaultBufferbloatDownloadURL is the default CDN endpoint for load generation.
-const DefaultBufferbloatDownloadURL = "https://speed.cloudflare.com/__down?bytes=100000000"
+// defaultBufferbloatDownloadURL is the default CDN endpoint for load generation.
+const defaultBufferbloatDownloadURL = "https://speed.cloudflare.com/__down?bytes=100000000"
 
 // BufferbloatResult holds the results of a latency-under-load test.
 type BufferbloatResult struct {
@@ -48,7 +48,7 @@ func (b *BufferbloatCollector) Collect(ctx context.Context) (BufferbloatResult, 
 	if err != nil {
 		return BufferbloatResult{}, fmt.Errorf("bufferbloat idle measurement: %w", err)
 	}
-	idleLatency := ComputeMedian(idleSamples)
+	idleLatency := computeMedian(idleSamples)
 
 	// Phase 2: Start HTTP download to generate load, measure latency concurrently
 	loadCtx, loadCancel := context.WithTimeout(ctx, 6*time.Second)
@@ -117,15 +117,15 @@ func (b *BufferbloatCollector) Collect(ctx context.Context) (BufferbloatResult, 
 		return BufferbloatResult{}, fmt.Errorf("bufferbloat: download failed, no load was generated")
 	}
 
-	loadedLatency := ComputeMedian(loadedSamples)
+	loadedLatency := computeMedian(loadedSamples)
 	latencyIncrease := loadedLatency - idleLatency
 	if latencyIncrease < 0 {
 		latencyIncrease = 0
 	}
 
-	throughput := ComputeThroughput(downloaded, downloadElapsed)
+	throughput := computeThroughput(downloaded, downloadElapsed)
 
-	grade := GradeBufferbloat(latencyIncrease)
+	grade := gradeBufferbloat(latencyIncrease)
 
 	result := BufferbloatResult{
 		IdleLatencyMs:     idleLatency,
@@ -175,10 +175,8 @@ func (b *BufferbloatCollector) measureLatency(ctx context.Context, count int, in
 	return samples, nil
 }
 
-// ── Pure functions (exported for testing) ────────────────────
-
-// GradeBufferbloat assigns a letter grade based on latency increase.
-func GradeBufferbloat(latencyIncreaseMs float64) string {
+// gradeBufferbloat assigns a letter grade based on latency increase.
+func gradeBufferbloat(latencyIncreaseMs float64) string {
 	switch {
 	case latencyIncreaseMs < 5:
 		return "A+"
@@ -215,8 +213,8 @@ func GradeToNumeric(grade string) float64 {
 	}
 }
 
-// ComputeMedian returns the median of a float64 slice.
-func ComputeMedian(values []float64) float64 {
+// computeMedian returns the median of a float64 slice.
+func computeMedian(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}

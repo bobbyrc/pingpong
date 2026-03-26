@@ -16,9 +16,9 @@ func TestReadEnvFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	env, err := ReadEnvFile(path)
+	env, err := readEnvFile(path)
 	if err != nil {
-		t.Fatalf("ReadEnvFile: %v", err)
+		t.Fatalf("readEnvFile: %v", err)
 	}
 
 	if len(env) != 2 {
@@ -48,9 +48,9 @@ func TestReadEnvFile_BlankLinesAndValuesWithEquals(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	env, err := ReadEnvFile(path)
+	env, err := readEnvFile(path)
 	if err != nil {
-		t.Fatalf("ReadEnvFile: %v", err)
+		t.Fatalf("readEnvFile: %v", err)
 	}
 
 	if env["KEY"] != "val=ue" {
@@ -70,9 +70,9 @@ func TestReadEnvFile_StripsQuotesAndExportPrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	env, err := ReadEnvFile(path)
+	env, err := readEnvFile(path)
 	if err != nil {
-		t.Fatalf("ReadEnvFile: %v", err)
+		t.Fatalf("readEnvFile: %v", err)
 	}
 
 	tests := []struct {
@@ -92,7 +92,7 @@ func TestReadEnvFile_StripsQuotesAndExportPrefix(t *testing.T) {
 }
 
 func TestReadEnvFile_NotFound(t *testing.T) {
-	env, err := ReadEnvFile(filepath.Join(t.TempDir(), ".env"))
+	env, err := readEnvFile(filepath.Join(t.TempDir(), ".env"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -102,14 +102,14 @@ func TestReadEnvFile_NotFound(t *testing.T) {
 }
 
 func TestReadEnvFile_ParentDirMissing(t *testing.T) {
-	_, err := ReadEnvFile(filepath.Join(t.TempDir(), "no-such-dir", ".env"))
+	_, err := readEnvFile(filepath.Join(t.TempDir(), "no-such-dir", ".env"))
 	if err == nil {
 		t.Fatal("expected error when parent directory does not exist")
 	}
 }
 
 func TestWriteEnvFile_ParentDirMissing(t *testing.T) {
-	err := WriteEnvFile(filepath.Join(t.TempDir(), "no-such-dir", ".env"), map[string]string{"A": "1"})
+	err := writeEnvFile(filepath.Join(t.TempDir(), "no-such-dir", ".env"), map[string]string{"A": "1"})
 	if err == nil {
 		t.Fatal("expected error when parent directory does not exist")
 	}
@@ -123,8 +123,8 @@ func TestWriteEnvFile_CreatesFile(t *testing.T) {
 		"FOO": "bar",
 		"BAZ": "qux",
 	}
-	if err := WriteEnvFile(path, updates); err != nil {
-		t.Fatalf("WriteEnvFile: %v", err)
+	if err := writeEnvFile(path, updates); err != nil {
+		t.Fatalf("writeEnvFile: %v", err)
 	}
 
 	data, err := os.ReadFile(path)
@@ -161,8 +161,8 @@ func TestWriteEnvFile(t *testing.T) {
 		"FOO": "new",
 		"BAZ": "updated",
 	}
-	if err := WriteEnvFile(path, updates); err != nil {
-		t.Fatalf("WriteEnvFile: %v", err)
+	if err := writeEnvFile(path, updates); err != nil {
+		t.Fatalf("writeEnvFile: %v", err)
 	}
 
 	data, err := os.ReadFile(path)
@@ -213,8 +213,8 @@ func TestWriteEnvFile_AppendsNewKeys(t *testing.T) {
 	updates := map[string]string{
 		"NEWKEY": "newval",
 	}
-	if err := WriteEnvFile(path, updates); err != nil {
-		t.Fatalf("WriteEnvFile: %v", err)
+	if err := writeEnvFile(path, updates); err != nil {
+		t.Fatalf("writeEnvFile: %v", err)
 	}
 
 	data, err := os.ReadFile(path)
@@ -245,8 +245,8 @@ func TestWriteEnvFile_PreservesStructure(t *testing.T) {
 	}
 
 	updates := map[string]string{"A": "10"}
-	if err := WriteEnvFile(path, updates); err != nil {
-		t.Fatalf("WriteEnvFile: %v", err)
+	if err := writeEnvFile(path, updates); err != nil {
+		t.Fatalf("writeEnvFile: %v", err)
 	}
 
 	data, err := os.ReadFile(path)
@@ -282,8 +282,8 @@ func TestWriteEnvFile_UpdatesExportPrefixedKeys(t *testing.T) {
 	}
 
 	updates := map[string]string{"FOO": "new"}
-	if err := WriteEnvFile(path, updates); err != nil {
-		t.Fatalf("WriteEnvFile: %v", err)
+	if err := writeEnvFile(path, updates); err != nil {
+		t.Fatalf("writeEnvFile: %v", err)
 	}
 
 	data, err := os.ReadFile(path)

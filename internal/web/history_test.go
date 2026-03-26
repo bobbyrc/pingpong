@@ -17,7 +17,7 @@ func openTestDB(t *testing.T) *sqlx.DB {
 	return db
 }
 
-func TestHistoryStore_RecordAndLoad(t *testing.T) {
+func TestHistoryStore_RecordAndLoadAll(t *testing.T) {
 	db := openTestDB(t)
 	store, err := NewHistoryStore(db)
 	if err != nil {
@@ -26,15 +26,16 @@ func TestHistoryStore_RecordAndLoad(t *testing.T) {
 
 	// Record some values
 	for i := 0; i < 5; i++ {
-		if err := store.Record("ping_latency", "1.1.1.1", float64(10+i)); err != nil {
+		if err := store.record("ping_latency", "1.1.1.1", float64(10+i)); err != nil {
 			t.Fatalf("Record: %v", err)
 		}
 	}
 
-	points, err := store.Load("ping_latency", "1.1.1.1", 60)
+	all, err := store.loadAll(60)
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf("LoadAll: %v", err)
 	}
+	points := all["ping_latency"]["1.1.1.1"]
 	if len(points) != 5 {
 		t.Fatalf("expected 5 points, got %d", len(points))
 	}
@@ -60,20 +61,21 @@ func TestHistoryStore_Prune(t *testing.T) {
 
 	// Record 10 values
 	for i := 0; i < 10; i++ {
-		if err := store.Record("ping_latency", "8.8.8.8", float64(i)); err != nil {
+		if err := store.record("ping_latency", "8.8.8.8", float64(i)); err != nil {
 			t.Fatalf("Record: %v", err)
 		}
 	}
 
 	// Prune to keep 3
-	if err := store.Prune("ping_latency", "8.8.8.8", 3); err != nil {
+	if err := store.prune("ping_latency", "8.8.8.8", 3); err != nil {
 		t.Fatalf("Prune: %v", err)
 	}
 
-	points, err := store.Load("ping_latency", "8.8.8.8", 60)
+	all, err := store.loadAll(60)
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf("LoadAll: %v", err)
 	}
+	points := all["ping_latency"]["8.8.8.8"]
 	if len(points) != 3 {
 		t.Fatalf("expected 3 points after prune, got %d", len(points))
 	}
@@ -93,13 +95,18 @@ func TestHistoryStore_MultipleSeries(t *testing.T) {
 		t.Fatalf("NewHistoryStore: %v", err)
 	}
 
-	store.Record("ping_latency", "1.1.1.1", 10)
-	store.Record("ping_latency", "8.8.8.8", 20)
-	store.Record("download_speed", "", 100)
+	store.record("ping_latency", "1.1.1.1", 10)
+	store.record("ping_latency", "8.8.8.8", 20)
+	store.record("download_speed", "", 100)
 
-	p1, _ := store.Load("ping_latency", "1.1.1.1", 60)
-	p2, _ := store.Load("ping_latency", "8.8.8.8", 60)
-	p3, _ := store.Load("download_speed", "", 60)
+	all, err := store.loadAll(60)
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+
+	p1 := all["ping_latency"]["1.1.1.1"]
+	p2 := all["ping_latency"]["8.8.8.8"]
+	p3 := all["download_speed"][""]
 
 	if len(p1) != 1 || p1[0].Value != 10 {
 		t.Errorf("1.1.1.1: got %v", p1)
@@ -112,19 +119,19 @@ func TestHistoryStore_MultipleSeries(t *testing.T) {
 	}
 }
 
-func TestHistoryStore_LoadEmpty(t *testing.T) {
+func TestHistoryStore_LoadAllEmpty(t *testing.T) {
 	db := openTestDB(t)
 	store, err := NewHistoryStore(db)
 	if err != nil {
 		t.Fatalf("NewHistoryStore: %v", err)
 	}
 
-	points, err := store.Load("nonexistent", "target", 60)
+	all, err := store.loadAll(60)
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf("LoadAll: %v", err)
 	}
-	if len(points) != 0 {
-		t.Fatalf("expected 0 points, got %d", len(points))
+	if len(all) != 0 {
+		t.Fatalf("expected 0 series, got %d", len(all))
 	}
 }
 
@@ -135,12 +142,12 @@ func TestHistoryStore_LoadAll(t *testing.T) {
 		t.Fatalf("NewHistoryStore: %v", err)
 	}
 
-	store.Record("ping_latency", "1.1.1.1", 10)
-	store.Record("ping_latency", "8.8.8.8", 20)
-	store.Record("download_speed", "", 100)
-	store.Record("upload_speed", "", 50)
+	store.record("ping_latency", "1.1.1.1", 10)
+	store.record("ping_latency", "8.8.8.8", 20)
+	store.record("download_speed", "", 100)
+	store.record("upload_speed", "", 50)
 
-	all, err := store.LoadAll(60)
+	all, err := store.loadAll(60)
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)
 	}
@@ -175,12 +182,12 @@ func TestHistoryStore_LoadAllWithLimit(t *testing.T) {
 
 	// Record 10 points for one series
 	for i := 0; i < 10; i++ {
-		if err := store.Record("ping_latency", "1.1.1.1", float64(i)); err != nil {
+		if err := store.record("ping_latency", "1.1.1.1", float64(i)); err != nil {
 			t.Fatalf("Record: %v", err)
 		}
 	}
 
-	all, err := store.LoadAll(3)
+	all, err := store.loadAll(3)
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)
 	}
@@ -211,7 +218,7 @@ func TestHistoryStore_PruneNonExistent(t *testing.T) {
 	}
 
 	// Prune a metric/target that has no data; should not error
-	if err := store.Prune("nonexistent_metric", "no_target", 3); err != nil {
+	if err := store.prune("nonexistent_metric", "no_target", 3); err != nil {
 		t.Fatalf("Prune on non-existent data returned error: %v", err)
 	}
 }
@@ -230,14 +237,15 @@ func TestHistoryStore_NewHistoryStoreIdempotent(t *testing.T) {
 	}
 
 	// Verify both stores work by writing with one and reading with the other
-	if err := store1.Record("test_metric", "target", 42.0); err != nil {
+	if err := store1.record("test_metric", "target", 42.0); err != nil {
 		t.Fatalf("Record via store1: %v", err)
 	}
 
-	points, err := store2.Load("test_metric", "target", 60)
+	all, err := store2.loadAll(60)
 	if err != nil {
-		t.Fatalf("Load via store2: %v", err)
+		t.Fatalf("LoadAll via store2: %v", err)
 	}
+	points := all["test_metric"]["target"]
 	if len(points) != 1 || points[0].Value != 42.0 {
 		t.Errorf("expected 1 point with value 42.0, got %v", points)
 	}

@@ -11,12 +11,12 @@ import (
 type TriggerReason string
 
 const (
-	TriggerBaseline           TriggerReason = "baseline"
-	TriggerLatencySpike       TriggerReason = "latency_spike"
-	TriggerJitterSpike        TriggerReason = "jitter_spike"
-	TriggerPacketLoss         TriggerReason = "packet_loss"
-	TriggerDNSSlow            TriggerReason = "dns_slow"
-	TriggerConnectionRecovery TriggerReason = "connection_recovery"
+	triggerBaseline           TriggerReason = "baseline"
+	triggerLatencySpike       TriggerReason = "latency_spike"
+	triggerJitterSpike        TriggerReason = "jitter_spike"
+	triggerPacketLoss         TriggerReason = "packet_loss"
+	triggerDNSSlow            TriggerReason = "dns_slow"
+	triggerConnectionRecovery TriggerReason = "connection_recovery"
 )
 
 // TriggerEvent records a trigger occurrence.
@@ -70,9 +70,9 @@ type BandwidthOrchestrator struct {
 	cfg OrchestratorConfig
 
 	mu               sync.Mutex
-	pingBaseline     *RollingAvg
-	jitterBaseline   *RollingAvg
-	dnsBaseline      *RollingAvg
+	pingBaseline     *rollingAvg
+	jitterBaseline   *rollingAvg
+	dnsBaseline      *rollingAvg
 	lastNDT7         time.Time
 	lastBufferbloat  time.Time
 	lastTrigger      time.Time
@@ -87,9 +87,9 @@ func NewBandwidthOrchestrator(ndt7 *NDT7Collector, bb *BufferbloatCollector, cfg
 		ndt7:           ndt7,
 		bufferbloat:    bb,
 		cfg:            cfg,
-		pingBaseline:   NewRollingAvg(0.1, cfg.WarmupSamples),
-		jitterBaseline: NewRollingAvg(0.1, cfg.WarmupSamples),
-		dnsBaseline:    NewRollingAvg(0.1, cfg.WarmupSamples),
+		pingBaseline:   newRollingAvg(0.1, cfg.WarmupSamples),
+		jitterBaseline: newRollingAvg(0.1, cfg.WarmupSamples),
+		dnsBaseline:    newRollingAvg(0.1, cfg.WarmupSamples),
 		now:            time.Now,
 	}
 }
@@ -106,7 +106,7 @@ func (o *BandwidthOrchestrator) Run(ctx context.Context, resultCh chan<- Bandwid
 	case <-time.After(30 * time.Second):
 	}
 
-	o.runTest(ctx, TriggerEvent{Reason: TriggerBaseline, Time: o.now()}, resultCh)
+	o.runTest(ctx, TriggerEvent{Reason: triggerBaseline, Time: o.now()}, resultCh)
 
 	if o.cfg.BaselineInterval <= 0 {
 		// The initial baseline above still runs to seed anomaly detection baselines.
@@ -123,7 +123,7 @@ func (o *BandwidthOrchestrator) Run(ctx context.Context, resultCh chan<- Bandwid
 		case <-ctx.Done():
 			return
 		case <-baselineTicker.C:
-			o.runTest(ctx, TriggerEvent{Reason: TriggerBaseline, Time: o.now()}, resultCh)
+			o.runTest(ctx, TriggerEvent{Reason: triggerBaseline, Time: o.now()}, resultCh)
 		}
 	}
 }
@@ -137,26 +137,26 @@ func (o *BandwidthOrchestrator) ReportPing(results []PingResult, triggerCh chan<
 	for _, r := range results {
 		// Check for anomalies BEFORE updating baselines so spikes
 		// are compared against the pre-spike baseline value.
-		if o.pingBaseline.Ready() {
-			if r.AvgMs > o.pingBaseline.Value()*o.cfg.LatencyMultiplier {
-				o.maybeTrigger(TriggerLatencySpike, triggerCh)
+		if o.pingBaseline.ready() {
+			if r.AvgMs > o.pingBaseline.value()*o.cfg.LatencyMultiplier {
+				o.maybeTrigger(triggerLatencySpike, triggerCh)
 			}
 		}
-		if o.jitterBaseline.Ready() {
-			if r.JitterMs > o.jitterBaseline.Value()*o.cfg.JitterMultiplier {
-				o.maybeTrigger(TriggerJitterSpike, triggerCh)
+		if o.jitterBaseline.ready() {
+			if r.JitterMs > o.jitterBaseline.value()*o.cfg.JitterMultiplier {
+				o.maybeTrigger(triggerJitterSpike, triggerCh)
 			}
 		}
 		if r.PacketLoss > o.cfg.PacketLossThreshold {
-			o.maybeTrigger(TriggerPacketLoss, triggerCh)
+			o.maybeTrigger(triggerPacketLoss, triggerCh)
 		}
 
 		// Update baselines after anomaly detection
 		if r.PacketLoss < 100 && r.AvgMs > 0 {
-			o.pingBaseline.Update(r.AvgMs)
+			o.pingBaseline.update(r.AvgMs)
 		}
 		if r.JitterMs > 0 {
-			o.jitterBaseline.Update(r.JitterMs)
+			o.jitterBaseline.update(r.JitterMs)
 		}
 	}
 }
@@ -169,14 +169,14 @@ func (o *BandwidthOrchestrator) ReportDNS(results []DNSResult, triggerCh chan<- 
 	for _, r := range results {
 		// Check for anomalies BEFORE updating the baseline so spikes
 		// are compared against the pre-spike baseline value.
-		if o.dnsBaseline.Ready() {
-			if r.ResolutionMs > o.dnsBaseline.Value()*o.cfg.DNSMultiplier {
-				o.maybeTrigger(TriggerDNSSlow, triggerCh)
+		if o.dnsBaseline.ready() {
+			if r.ResolutionMs > o.dnsBaseline.value()*o.cfg.DNSMultiplier {
+				o.maybeTrigger(triggerDNSSlow, triggerCh)
 			}
 		}
 
 		if r.ResolutionMs > 0 {
-			o.dnsBaseline.Update(r.ResolutionMs)
+			o.dnsBaseline.update(r.ResolutionMs)
 		}
 	}
 }
@@ -185,7 +185,7 @@ func (o *BandwidthOrchestrator) ReportDNS(results []DNSResult, triggerCh chan<- 
 func (o *BandwidthOrchestrator) ReportConnectionRecovery(triggerCh chan<- TriggerEvent) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	o.maybeTrigger(TriggerConnectionRecovery, triggerCh)
+	o.maybeTrigger(triggerConnectionRecovery, triggerCh)
 }
 
 // maybeTrigger sends a trigger event if the cooldown has elapsed.

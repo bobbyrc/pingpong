@@ -25,9 +25,9 @@ func TestGradeBufferbloat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := GradeBufferbloat(tt.increase)
+		got := gradeBufferbloat(tt.increase)
 		if got != tt.want {
-			t.Errorf("GradeBufferbloat(%.1f) = %s, want %s", tt.increase, got, tt.want)
+			t.Errorf("gradeBufferbloat(%.1f) = %s, want %s", tt.increase, got, tt.want)
 		}
 	}
 }
@@ -71,19 +71,19 @@ func TestComputeMedian(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := ComputeMedian(tt.values)
+		got := computeMedian(tt.values)
 		if math.Abs(got-tt.want) > 0.001 {
-			t.Errorf("ComputeMedian(%s) = %.3f, want %.3f", tt.name, got, tt.want)
+			t.Errorf("computeMedian(%s) = %.3f, want %.3f", tt.name, got, tt.want)
 		}
 	}
 }
 
 func TestComputeMedian_DoesNotMutateInput(t *testing.T) {
 	input := []float64{5, 1, 3}
-	ComputeMedian(input)
+	computeMedian(input)
 	// Original slice should be unchanged
 	if input[0] != 5 || input[1] != 1 || input[2] != 3 {
-		t.Fatalf("ComputeMedian mutated input: %v", input)
+		t.Fatalf("computeMedian mutated input: %v", input)
 	}
 }
 
@@ -92,7 +92,7 @@ func TestBufferbloatResult_Calculation(t *testing.T) {
 	loaded := 210.0
 	increase := loaded - idle
 
-	grade := GradeBufferbloat(increase)
+	grade := gradeBufferbloat(increase)
 	if grade != "D" {
 		t.Fatalf("expected grade D for 200ms increase, got %s", grade)
 	}
